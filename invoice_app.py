@@ -62,14 +62,14 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.add_page()
 
     # إضافة الخطوط العربية (Graphik Arabic)
-    pdf.add_font("Graphik", "", "GRAPHIK ARABIC REGULAR.OTF", uni=True)
-    pdf.add_font("Graphik", "B", "GRAPHIK ARABIC BOLD.OTF", uni=True)
+    pdf.add_font("Graphik", "", "GRAPHIK ARABIC BLACK.OTF", uni=True)
+    pdf.add_font("Graphik", "B", "GRAPHIK ARABIC BLACK.OTF", uni=True)
 
     # عنوان رئيسي
     pdf.set_font("Graphik", "B", 18)
     pdf.cell(0, 10, ar_text("فاتورة"), ln=True, align="C")
 
-    pdf.set_font("Graphik", "", 12)
+    pdf.set_font("", "", 12)
     pdf.cell(0, 10, ar_text(f"اسم الحساب: {customer_name}"), ln=True)
     pdf.cell(0, 10, ar_text(f"كود الحساب: {customer_code}"), ln=True)
     pdf.cell(0, 10, ar_text(f"العنوان: {customer_address}"), ln=True)
