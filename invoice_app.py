@@ -1,21 +1,29 @@
 import streamlit as st
+import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
 
+# إعداد الصفحة
 st.set_page_config(page_title="مولد الفواتير - Begonia Pharma", page_icon="📄")
 
 st.title("📄 مولد الفواتير - Begonia Pharma")
 
+# تهيئة session_state للأصناف
+if "items" not in st.session_state:
+    st.session_state["items"] = []
+
+# ==========================
 # بيانات العميل
+# ==========================
 st.header("بيانات العميل")
 customer_name = st.text_input("اسم الحساب")
 customer_code = st.text_input("كود الحساب")
 customer_address = st.text_area("العنوان")
 
-# جدول الأصناف
+# ==========================
+# إضافة الأصناف
+# ==========================
 st.header("إضافة الأصناف")
-if "items" not in st.session_state:
-    st.session_state.items = []
 
 with st.form("add_item"):
     col1, col2, col3 = st.columns(3)
@@ -34,15 +42,23 @@ with st.form("add_item"):
 
     submitted = st.form_submit_button("➕ إضافة صنف")
     if submitted and name:
-        st.session_state.items.append(
+        st.session_state["items"].append(
             {"name": name, "qty": qty, "price": price, "expiry": expiry, "discount": discount}
         )
 
+# ==========================
 # عرض الأصناف
+# ==========================
 st.subheader("الأصناف المضافة")
-st.table(st.session_state.items)
+if st.session_state["items"]:
+    df = pd.DataFrame(st.session_state["items"])
+    st.table(df)
+else:
+    st.info("لم يتم إضافة أي أصناف بعد.")
 
+# ==========================
 # توليد الفاتورة
+# ==========================
 if st.button("📥 توليد الفاتورة PDF"):
     pdf = FPDF()
     pdf.add_page()
@@ -65,7 +81,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.ln()
 
     total = 0
-    for item in st.session_state.items:
+    for item in st.session_state["items"]:
         pdf.cell(col_widths[0], 10, item["name"], 1)
         pdf.cell(col_widths[1], 10, str(item["qty"]), 1)
         pdf.cell(col_widths[2], 10, item["expiry"], 1)
