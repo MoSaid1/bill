@@ -142,7 +142,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_font("Graphik","",12)
 
     # عدد الأصناف
-    pdf.cell(40,10,"عدد الأصناف:", border=1, align="R")
+    pdf.cell(40,10, ar("عدد الأصناف:"), border=1, align="R")
     pdf.cell(25,10,str(len(st.session_state["items"])), border=1, align="C")
 
     # عدد العلب
