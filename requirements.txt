@@ -1,5 +1,7 @@
 streamlit
 fpdf2
-pandas
-arabic-reshaper
+PyPDF2
+pdf2image
+Pillow
+arabic_reshaper
 python-bidi
