@@ -4,26 +4,44 @@ from fpdf import FPDF
 from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
-import segno  # QR code library
 import os
 import re
+import urllib.parse
+import urllib.request
+
+# جرّب استيراد segno، ولو مش موجود هنستخدم API بدون مكتبات
+try:
+    import segno  # QR code library
+except Exception:
+    segno = None
 
 # ===== إصلاح الكتابة العربية =====
 def fix_arabic(txt):
     reshaped = arabic_reshaper.reshape(str(txt))
     return get_display(reshaped)
 
-# ===== توليد QR Code =====
-def generate_qrcode(data, filename="qrcode.png"):
-    qr = segno.make(data)
-    qr.save(filename, scale=4)
+# ===== توليد QR Code (segno إن وجد، وإلا API خارجي) =====
+def generate_qrcode(data, filename="qrcode.png", size=200):
+    data = str(data or "")
+    if segno is not None:
+        qr = segno.make(data)
+        # scale يعتمد على الحجم المطلوب (تقريبي)
+        scale = max(2, int(size / 50))
+        qr.save(filename, scale=scale)
+        return filename
+    # Fallback عبر API (بدون أي مكتبات خارجية)
+    url = "https://api.qrserver.com/v1/create-qr-code/?size=" + f"{size}x{size}" + "&data=" + urllib.parse.quote(data)
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        png = resp.read()
+    with open(filename, "wb") as f:
+        f.write(png)
     return filename
 
 # ===== تخزين الأصناف في الجلسة =====
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-st.set_page_config("فاتورة مع QR | Begonia", ":page_facing_up:")
+st.set_page_config(page_title="فاتورة مع QR | Begonia", page_icon=":page_facing_up:")
 st.title("📄 مولد فاتورة - Begonia Pharma")
 
 # ===== بيانات العميل =====
@@ -49,20 +67,23 @@ with col_b:
     apply_early = st.checkbox("📉 خصم تعجيل الدفع؟")
     early_discount = 0.0
     if apply_early:
-        early_discount = st.number_input("نسبة خصم تعجيل الدفع (%)", 0.0, 100.0, step=0.5)
+        early_discount = st.number_input("نسبة خصم تعجيل الدفع (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
 apply_extra = st.checkbox("📦 خصم إضافي عام؟")
 extra_discount = 0.0
 if apply_extra:
-    extra_discount = st.number_input("نسبة خصم إضافي (%)", 0.0, 100.0, step=0.5)
+    extra_discount = st.number_input("نسبة خصم إضافي (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
 # ===== تحكم في مكان QR Code =====
 st.header("🧭 تحكم في مكان QR Code داخل PDF")
 colx, coly = st.columns(2)
 with colx:
-    qr_x = st.number_input("📍 X", 0, 200, value=150)
+    qr_x = st.number_input("📍 X", min_value=0, max_value=200, value=150, step=1)
 with coly:
-    qr_y = st.number_input("📍 Y", 0, 280, value=260)
+    qr_y = st.number_input("📍 Y", min_value=0, max_value=280, value=260, step=1)
+
+# معلومة عن الـ backend المستخدم
+st.caption("مولد QR المستخدم: " + ("segno (محلي)" if segno is not None else "API خارجي (بدون تثبيت مكتبات)"))
 
 # ===== إضافة الأصناف =====
 st.header("🧪 الأصناف")
@@ -71,9 +92,9 @@ with st.form("add_item"):
     with c1:
         name = st.text_input("اسم الصنف")
     with c2:
-        qty = st.number_input("الكمية", min_value=1, step=1)
+        qty = st.number_input("الكمية", min_value=1, step=1, value=1)
     with c3:
-        price = st.number_input("السعر", min_value=0.0, step=0.5)
+        price = st.number_input("السعر", min_value=0.0, step=0.5, value=0.0)
 
     c4, c5, c6 = st.columns(3)
     with c4:
@@ -81,7 +102,7 @@ with st.form("add_item"):
     with c5:
         expiry = st.text_input("تاريخ الصلاحية")
     with c6:
-        discount = st.number_input("الخصم (%)", 0.0, 100.0, step=0.5)
+        discount = st.number_input("الخصم (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
     if st.form_submit_button("➕ أضف الصنف"):
         st.session_state["items"].append({
@@ -195,8 +216,8 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(40, 8, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
-    # ===== توليد QR Code =====
-    qr_path = generate_qrcode(invoice_number or "00000", "qrcode")
+    # ===== توليد وإدراج QR Code =====
+    qr_path = generate_qrcode(invoice_number or "00000", filename="qrcode.png", size=200)
     pdf.image(qr_path, x=qr_x, y=qr_y, w=30)
 
     # ===== حفظ الفاتورة =====
