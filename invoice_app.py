@@ -98,7 +98,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     # الخلفية
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
-    # تحميل الخط العربي الجديد
+    # تحميل الخط العربي
     try:
         pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
         pdf.set_font("Amiri", "", 12)
@@ -137,7 +137,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     total_qty = 0
 
     pdf.set_xy(x_center, table_y)
-    pdf.set_font("Amiri", "", 10)  # ⬅️ تم التعديل هنا
+    pdf.set_font("Amiri", "", 10)
 
     # --- الهيدر بخلفية رمادية ---
     pdf.set_x(x_center)
@@ -154,12 +154,12 @@ if st.button("📥 توليد الفاتورة PDF"):
         total_qty += item["qty"]
 
         row = [
-            f"{val:.2f}",
-            f"{item['discount']}%",
-            f"{item['price']:.2f}",
+            fix_arabic(f"{val:.2f}"),
+            fix_arabic(f"{item['discount']}%"),
+            fix_arabic(f"{item['price']:.2f}"),
             fix_arabic(item['expiry']),
             fix_arabic(item['batch']),
-            str(item['qty']),
+            fix_arabic(str(item['qty'])),
             fix_arabic(item['name'])
         ]
 
@@ -169,18 +169,18 @@ if st.button("📥 توليد الفاتورة PDF"):
         pdf.ln()
 
     # --- ملخص الفاتورة ---
-    pdf.set_font("Amiri", "", 11)  # ⬅️ تم التعديل هنا
+    pdf.set_font("Amiri", "", 11)
     pdf.set_xy(125, 220)
-    pdf.cell(40, 8, str(len(st.session_state["items"])), 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic(str(len(st.session_state["items"]))), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("عدد الأصناف"), 1, 1, 'C')
     pdf.set_x(125)
-    pdf.cell(40, 8, str(total_qty), 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic(str(total_qty)), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("عدد العلب"), 1, 1, 'C')
     pdf.set_x(125)
-    pdf.cell(40, 8, f"{paid_amount:.2f}", 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic(f"{paid_amount:.2f}"), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
     pdf.set_x(125)
-    pdf.cell(40, 8, f"{total:.2f}", 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
     # --- اسم الملف شامل التاريخ ---
