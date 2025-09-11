@@ -11,8 +11,15 @@ import re
 def fix_arabic(txt: str) -> str:
     if not txt:
         return ""
-    reshaped = arabic_reshaper.reshape(str(txt))
-    return get_display(reshaped)
+    try:
+        reshaped = arabic_reshaper.reshape(
+            str(txt),
+            reshape_options=arabic_reshaper.config.RLM_ON_RIGHT_AND_LEFT
+        )
+        return get_display(reshaped)
+    except Exception as e:
+        print(f"Error in Arabic reshaping: {e}")
+        return str(txt)
 
 # Streamlit إعداد
 st.set_page_config("مولد فواتير | Begonia Pharma", ":page_facing_up:")
@@ -75,12 +82,14 @@ else:
 # ===== توليد الفاتورة PDF =====
 if st.button("📥 توليد الفاتورة PDF"):
 
+    # التحقق من وجود ملف الخلفية
     if not os.path.exists("bill.jpg"):
         st.error("❗ يجب وجود ملف الخلفية bill.jpg")
         st.stop()
 
-    if not os.path.exists("Cairo-Bold.ttf"):
-        st.error("❗ يجب وجود ملف الخط Cairo-Bold.ttf")
+    # التحقق من وجود ملف الخط
+    if not os.path.exists("Amiri-Regular.ttf"):
+        st.error("❗ يجب وجود ملف الخط Amiri-Regular.ttf")
         st.stop()
 
     pdf = FPDF()
@@ -89,9 +98,13 @@ if st.button("📥 توليد الفاتورة PDF"):
     # الخلفية
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
-    # تحميل الخط العربي
-    pdf.add_font("Cairo", "", "Cairo-Bold.ttf", uni=True)
-    pdf.set_font("Cairo", "", 12)
+    # تحميل الخط العربي الجديد
+    try:
+        pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
+        pdf.set_font("Amiri", "", 12)
+    except Exception as e:
+        st.error(f"فشل تحميل خط Amiri: {e}")
+        st.stop()
 
     # --- بيانات العميل ---
     pdf.set_xy(105, 25)
@@ -124,7 +137,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     total_qty = 0
 
     pdf.set_xy(x_center, table_y)
-    pdf.set_font("Cairo", "", 10)
+    pdf.set_font("Amiri", "", 10)  # ⬅️ تم التعديل هنا
 
     # --- الهيدر بخلفية رمادية ---
     pdf.set_x(x_center)
@@ -156,7 +169,7 @@ if st.button("📥 توليد الفاتورة PDF"):
         pdf.ln()
 
     # --- ملخص الفاتورة ---
-    pdf.set_font("Cairo", "", 11)
+    pdf.set_font("Amiri", "", 11)  # ⬅️ تم التعديل هنا
     pdf.set_xy(125, 220)
     pdf.cell(40, 8, str(len(st.session_state["items"])), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("عدد الأصناف"), 1, 1, 'C')
