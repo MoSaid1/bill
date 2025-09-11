@@ -23,7 +23,7 @@ if "items" not in st.session_state:
 st.header("بيانات العميل")
 col1, col2, col3 = st.columns(3)
 with col1:
-    customer_name = st.text_input("ااسم االحساب")
+    customer_name = st.text_input("اسم الحساب")
 with col2:
     customer_code = st.text_input("كود الحساب")
 with col3:
@@ -103,7 +103,7 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # --- جدول الأصناف ---
     headers = [
-        ar("إجمالي القيمة"),
+        ar("اإجمالي االقيمة"),
         ar("الخصم"),
         ar("سعر الجمهور"),
         ar("تاريخ الصلاحية"),
