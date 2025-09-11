@@ -5,7 +5,6 @@ from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# إعداد الصفحة
 st.set_page_config(page_title="مولد الفواتير - Begonia Pharma", page_icon="📄")
 st.title("📄 مولد الفواتير - Begonia Pharma")
 
@@ -53,6 +52,7 @@ if st.session_state["items"]:
     df = pd.DataFrame(st.session_state["items"])
     st.table(df)
 
+# توليد الفاتورة
 if st.button("📥 توليد الفاتورة PDF"):
 
     pdf = FPDF("P","mm","A4")
@@ -62,41 +62,35 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_font("Graphik","",12)
 
     # ========================= HEADER =========================
-    pdf.image("logo.png", x=10, y=10, w=50)  # ضع logo.png كملف
-    pdf.set_xy(140,10)
+    pdf.image("logo.png", x=10, y=10, w=50)  # اللوجو
+    pdf.set_xy(170,15)
     pdf.set_font("Graphik","",16)
     pdf.set_text_color(53,148,82)  # أخضر
-    pdf.cell(60,10, ar("فاتورة"), align="R")
+    pdf.cell(30,10, ar("فاتورة"), align="R")
 
     pdf.set_text_color(0,0,0)
     pdf.set_font("Graphik","",10)
-    pdf.set_xy(140,20)
-    pdf.cell(60,6, ar(f"التاريخ: {datetime.now().strftime('%Y/%m/%d')}"), align="R")
-    pdf.set_xy(140,27)
-    pdf.cell(60,6, ar(f"اسم الحساب: {customer_name}"), align="R")
-    pdf.set_xy(140,34)
-    pdf.cell(60,6, ar(f"كود الحساب: {customer_code}"), align="R")
-    pdf.set_xy(140,41)
-    pdf.cell(60,6, ar(f"رقم الفاتورة: {invoice_number}"), align="R")
 
-    pdf.set_xy(140,50)
-    pdf.multi_cell(60,6, ar(f"العنوان: {customer_address}"), align="R")
+    # مربعات البيانات
+    pdf.set_xy(150,30); pdf.cell(50,8, ar(f"التاريخ: {datetime.now().strftime('%Y/%m/%d')}"), border=1, align="R")
+    pdf.set_xy(150,38); pdf.cell(50,8, ar(f"اسم الحساب: {customer_name}"), border=1, align="R")
+    pdf.set_xy(150,46); pdf.cell(50,8, ar(f"كود الحساب: {customer_code}"), border=1, align="R")
+    pdf.set_xy(150,54); pdf.cell(50,8, ar(f"رقم الفاتورة: {invoice_number}"), border=1, align="R")
+    pdf.set_xy(150,62); pdf.cell(50,8, ar(f"العنوان: {customer_address}"), border=1, align="R")
 
-    # بيانات الشركة
+    # بيانات الشركة أسفل اللوجو
     pdf.set_font("Graphik","",9)
-    pdf.set_xy(10,30)
-    pdf.cell(80,6, ar("سجل تجاري رقم: 158377"), ln=1)
-    pdf.set_xy(10,36)
-    pdf.cell(80,6, ar("رقم التسجيل الضريبي: 174-658-610"))
+    pdf.set_xy(15,55); pdf.cell(80,6, ar("سجل تجاري رقم: 158377"))
+    pdf.set_xy(15,61); pdf.cell(80,6, ar("رقم التسجيل الضريبي: 174-658-610"))
 
     # ========================= TABLE HEADER =========================
-    pdf.set_xy(10,70)
+    y_table = 90
+    pdf.set_xy(10,y_table)
     pdf.set_font("Graphik","",11)
-    pdf.set_fill_color(255,255,255)
     headers = ["اسم الصنف","الكمية","التشغيلة","تاريخ الصلاحية","سعر الجمهور","الخصم","اجمالي القيمة"]
     col_w = [45,20,25,30,25,20,30]
     for i,h in enumerate(headers):
-        pdf.cell(col_w[i],10,ar(h),1,0,"C",True)
+        pdf.cell(col_w[i],10,ar(h),1,0,"C")
     pdf.ln()
 
     # ========================= TABLE DATA =========================
@@ -113,21 +107,19 @@ if st.button("📥 توليد الفاتورة PDF"):
         pdf.ln()
 
     # ========================= SUMMARY =========================
-    pdf.ln(5)
+    pdf.ln(8)
     pdf.set_font("Graphik","",12)
-    pdf.cell(50,10, ar(f"عدد الأصناف: {len(st.session_state['items'])}"), 1)
-    pdf.cell(50,10, ar(f"عدد العلب: {total_qty}"), 1)
-    pdf.ln()
-    pdf.cell(100,10, ar(f"إجمالي القيمة: {round(total,2)}"), 1, ln=1,"C")
+    pdf.cell(60,10, ar(f"عدد الأصناف: {len(st.session_state['items'])}"), border=1)
+    pdf.cell(60,10, ar(f"عدد العلب: {total_qty}"), border=1)
+    pdf.cell(60,10, ar(f"إجمالي القيمة: {round(total,2)}"), border=1, ln=1, align="C")
 
     # ========================= FOOTER =========================
-    pdf.set_y(-25)
+    pdf.set_y(-20)
     pdf.set_font("Graphik","",9)
     pdf.set_text_color(255,255,255)
-    pdf.set_fill_color(53,148,82)
-    pdf.cell(0,10, ar("📞 01040008105 - 01289982650     🌐 begoniapharma.com     📍 34 Gamal Eldin Dewidar st. Nasr City, Cairo, Egypt"), 0,0,"C",True)
+    pdf.set_fill_color(47,105,151)  # أزرق خلفية
+    pdf.cell(0,8, ar("📞 01040008105 - 01289982650     🌐 begoniapharma.com     📍 34 Gamal Eldin Dewidar st. With Zaker Heussin st. Nasr City, Cairo, Egypt"),0,0,"C",True)
 
-    # ========================= SAVE =========================
     filename = "invoice.pdf"
     pdf.output(filename)
 
