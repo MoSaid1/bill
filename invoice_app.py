@@ -7,19 +7,21 @@ from bidi.algorithm import get_display
 import os
 import re
 
-# ----- إعداد اللغة العربية -----
-def ar(txt):
+# --- دالة لإصلاح النص العربي (توصيل + اتجاه) ---
+def fix_arabic(txt: str) -> str:
     if not txt:
         return ""
-    return get_display(arabic_reshaper.reshape(str(txt)))
+    reshaped = arabic_reshaper.reshape(str(txt))
+    return get_display(reshaped)
 
+# Streamlit إعداد
 st.set_page_config("مولد فواتير | Begonia Pharma", ":page_facing_up:")
 st.title("📄 مولد الفاتورة - Begonia Pharma")
 
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-# ----- إدخال بيانات العميل -----
+# ===== إدخال بيانات العميل =====
 st.header("بيانات العميل")
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -31,7 +33,7 @@ with col3:
 customer_address = st.text_area("العنوان")
 paid_amount = st.number_input("تحصيل الدفع", min_value=0.0, step=10.0)
 
-# ----- إدخال الأصناف -----
+# ===== إدخال الأصناف =====
 st.header("إضافة الأصناف")
 with st.form("add-item"):
     c1, c2, c3 = st.columns(3)
@@ -60,7 +62,7 @@ with st.form("add-item"):
             "discount": discount
         })
 
-# ----- عرض الأصناف -----
+# ===== عرض الأصناف =====
 if st.session_state["items"]:
     df = pd.DataFrame(st.session_state["items"])
     df["إجمالي القيمة"] = (
@@ -70,46 +72,48 @@ if st.session_state["items"]:
 else:
     st.info("لم يتم إدخال أي أصناف حتى الآن.")
 
-# ----- توليد الفاتورة PDF -----
+# ===== توليد الفاتورة PDF =====
 if st.button("📥 توليد الفاتورة PDF"):
 
     if not os.path.exists("bill.jpg"):
-        st.error("❗ ملف الخلفية bill.jpg غير موجود.")
+        st.error("❗ يجب وجود ملف الخلفية bill.jpg")
         st.stop()
 
-    if not os.path.exists("Tajawal-Regular.ttf"):
-        st.error("❗ ملف الخط Tajawal-Regular.ttf غير موجود.")
+    if not os.path.exists("Cairo-Bold.ttf"):
+        st.error("❗ يجب وجود ملف الخط Cairo-Bold.ttf")
         st.stop()
 
-    pdf = FPDF("P", "mm", "A4")
+    pdf = FPDF()
     pdf.add_page()
+
+    # الخلفية
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
-    pdf.add_font("Tajawal", "", "Tajawal-Regular.ttf", uni=True)
-    pdf.set_font("Tajawal", "", 12)
-    pdf.set_text_color(0, 0, 0)
+    # تحميل الخط العربي
+    pdf.add_font("Cairo", "", "Cairo-Bold.ttf", uni=True)
+    pdf.set_font("Cairo", "", 12)
 
     # --- بيانات العميل ---
     pdf.set_xy(105, 25)
-    pdf.cell(60, 8, ar(customer_name), 0, 0, "R")
+    pdf.cell(60, 8, fix_arabic(customer_name), 0, 0, "R")
     pdf.set_xy(105, 35)
-    pdf.cell(60, 8, ar(customer_code), 0, 0, "R")
+    pdf.cell(60, 8, fix_arabic(customer_code), 0, 0, "R")
     pdf.set_xy(105, 44)
-    pdf.cell(60, 8, ar(invoice_number), 0, 0, "R")
+    pdf.cell(60, 8, fix_arabic(invoice_number), 0, 0, "R")
     pdf.set_xy(20, 53)
-    pdf.multi_cell(160, 6, ar(customer_address), 0, "R")
+    pdf.multi_cell(160, 6, fix_arabic(customer_address), 0, "R")
     pdf.set_xy(120, 14)
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
     # --- جدول الأصناف ---
     headers = [
-        ar("إجمالي القيمة"),
-        ar("الخصم"),
-        ar("سعر الجمهور"),
-        ar("تاريخ الصلاحية"),
-        ar("التشغيلة"),
-        ar("الكمية"),
-        ar("اسم الصنف")
+        "إجمالي القيمة",
+        "الخصم",
+        "سعر الجمهور",
+        "تاريخ الصلاحية",
+        "التشغيلة",
+        "الكمية",
+        "اسم الصنف"
     ]
     col_w = [28, 18, 24, 24, 22, 16, 48]
     table_width = sum(col_w)
@@ -120,16 +124,17 @@ if st.button("📥 توليد الفاتورة PDF"):
     total_qty = 0
 
     pdf.set_xy(x_center, table_y)
-    pdf.set_font("Tajawal", "", 10)
+    pdf.set_font("Cairo", "", 10)
 
+    # --- الهيدر بخلفية رمادية ---
     pdf.set_x(x_center)
+    pdf.set_fill_color(230, 230, 230)
     for h, w in zip(headers, col_w):
-        pdf.cell(w, 8, h, 1, 0, 'C')
+        pdf.cell(w, 8, fix_arabic(h), 1, 0, 'C', fill=True)
     pdf.ln()
 
-    def has_ar(text):
-        return any('\u0600' <= ch <= '\u06FF' for ch in str(text))
-
+    # --- الأصناف ---
+    pdf.set_fill_color(255, 255, 255)
     for item in st.session_state["items"]:
         val = item["qty"] * item["price"] * (1 - item["discount"] / 100)
         total += val
@@ -139,34 +144,33 @@ if st.button("📥 توليد الفاتورة PDF"):
             f"{val:.2f}",
             f"{item['discount']}%",
             f"{item['price']:.2f}",
-            item["expiry"],
-            item["batch"],
-            str(item["qty"]),
-            item["name"]
+            fix_arabic(item['expiry']),
+            fix_arabic(item['batch']),
+            str(item['qty']),
+            fix_arabic(item['name'])
         ]
 
         pdf.set_x(x_center)
         for txt, w in zip(row, col_w):
-            content = ar(txt) if has_ar(txt) else str(txt)
-            pdf.cell(w, 9, content, 1, 0, 'C')
+            pdf.cell(w, 9, txt, 1, 0, 'C')
         pdf.ln()
 
     # --- ملخص الفاتورة ---
-    pdf.set_font("Tajawal", "", 11)
+    pdf.set_font("Cairo", "", 11)
     pdf.set_xy(125, 220)
     pdf.cell(40, 8, str(len(st.session_state["items"])), 1, 0, 'C')
-    pdf.cell(40, 8, ar("عدد الأصناف"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic("عدد الأصناف"), 1, 1, 'C')
     pdf.set_x(125)
     pdf.cell(40, 8, str(total_qty), 1, 0, 'C')
-    pdf.cell(40, 8, ar("عدد العلب"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic("عدد العلب"), 1, 1, 'C')
     pdf.set_x(125)
     pdf.cell(40, 8, f"{paid_amount:.2f}", 1, 0, 'C')
-    pdf.cell(40, 8, ar("تحصيل الدفع"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
     pdf.set_x(125)
     pdf.cell(40, 8, f"{total:.2f}", 1, 0, 'C')
-    pdf.cell(40, 8, ar("إجمالي القيمة"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
-    # --- اسم الملف يشمل رقم الفاتورة والتاريخ ---
+    # --- اسم الملف شامل التاريخ ---
     today_str = datetime.now().strftime("%Y-%m-%d")
     safe_invoice = re.sub(r'\W+', '_', invoice_number or "بدون_رقم")
     filename = f"فاتورة_{safe_invoice}_{today_str}.pdf"
