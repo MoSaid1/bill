@@ -78,6 +78,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.add_page()
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
+    # إعداد الخط
     pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
     pdf.set_font("Amiri", "", 12)
     pdf.set_text_color(0, 0, 0)
@@ -96,8 +97,8 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # ---------- جدول الأصناف ----------
     table_y = 80
-    headers = ["اسم الصنف", "الكمية", "التشغيلة", "تاريخ الصلاحية", "سعر الجمهور", "الخصم", "إجمالي القيمة"]
-    col_w = [48, 16, 22, 24, 24, 18, 28]
+    headers = ["إجمالي القيمة", "الخصم", "سعر الجمهور", "تاريخ الصلاحية", "التشغيلة", "الكمية", "اسم الصنف"]
+    col_w = [28, 18, 24, 24, 22, 16, 48]
 
     total = 0.0
     total_qty = 0
@@ -105,6 +106,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_xy(10, table_y)
     pdf.set_font("Amiri", "", 10)
 
+    # عنوان الأعمدة
     for h, w in zip(headers, col_w):
         pdf.cell(w, 8, ar(h), 1, 0, 'C')
     pdf.ln()
@@ -121,13 +123,13 @@ if st.button("📥 توليد الفاتورة PDF"):
         total_qty += item["qty"]
 
         row = [
-            item["name"],
-            str(item["qty"]),
-            item["batch"],
-            item["expiry"],
-            f"{item['price']:.2f}",
+            f"{val:.2f}",
             f"{item['discount']}%",
-            f"{val:.2f}"
+            f"{item['price']:.2f}",
+            item["expiry"],
+            item["batch"],
+            str(item["qty"]),
+            item["name"]
         ]
 
         for val_txt, w in zip(row, col_w):
