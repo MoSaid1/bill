@@ -5,28 +5,28 @@ from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# إعداد الصفحة
+# ========================= إعداد الصفحة =========================
 st.set_page_config(page_title="مولد الفواتير - Begonia Pharma", page_icon="📄")
 st.title("📄 مولد الفواتير - Begonia Pharma")
 
-# تهيئة الأصناف
+# ========================= Session State =========================
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-# دالة لضبط النص العربي
+# ========================= دالة النص العربي =========================
 def ar(txt):
     if not txt:
         return ""
     return get_display(arabic_reshaper.reshape(str(txt)))
 
-# ========================= واجهة إدخال بيانات =========================
-
+# ========================= إدخال بيانات العميل =========================
 st.header("بيانات العميل")
 customer_name = st.text_input("اسم الحساب")
 customer_code = st.text_input("كود الحساب")
 invoice_number = st.text_input("رقم الفاتورة")
 customer_address = st.text_area("العنوان")
 
+# ========================= الأصناف =========================
 st.header("إضافة الأصناف")
 with st.form("add_item"):
     col1, col2, col3 = st.columns(3)
@@ -48,14 +48,8 @@ with st.form("add_item"):
     submitted = st.form_submit_button("➕ إضافة")
     if submitted and name:
         st.session_state["items"].append(
-            {
-                "name": name, 
-                "qty": qty, 
-                "batch": batch, 
-                "expiry": expiry,
-                "price": price, 
-                "discount": discount
-            }
+            {"name": name, "qty": qty, "batch": batch, "expiry": expiry,
+             "price": price, "discount": discount}
         )
 
 # عرض الأصناف
@@ -68,29 +62,29 @@ else:
 # ========================= توليد الفاتورة =========================
 if st.button("📥 توليد الفاتورة PDF"):
 
-    pdf = FPDF("P", "mm", "A4")
+    pdf = FPDF("P","mm","A4")
     pdf.add_page()
 
     # تحميل خط عربي
-    pdf.add_font("Graphik", "", "GRAPHIK ARABIC BLACK.OTF", uni=True)
-    pdf.set_font("Graphik", "", 12)
+    pdf.add_font("Graphik","", "GRAPHIK ARABIC BLACK.OTF", uni=True)
+    pdf.set_font("Graphik","",12)
 
     # ---------------- Header -----------------
     pdf.image("logo.png", x=10, y=10, w=50)  # ضع لوجو PNG
-    pdf.set_xy(170, 15)
-    pdf.set_font("Graphik", "", 16)
+    pdf.set_xy(170,15)
+    pdf.set_font("Graphik","",16)
     pdf.set_text_color(53,148,82)
     pdf.cell(30, 10, ar("فاتورة"), align="R")
 
     pdf.set_text_color(0,0,0)
     pdf.set_font("Graphik","",10)
 
-    # بيانات العميل على اليمين
-    pdf.set_xy(140,30); pdf.cell(60,8, ar(f"التاريخ: {datetime.now().strftime('%Y/%m/%d')}"), border=1, align="R")
-    pdf.set_xy(140,38); pdf.cell(60,8, ar(f"اسم الحساب: {customer_name}"), border=1, align="R")
-    pdf.set_xy(140,46); pdf.cell(60,8, ar(f"كود الحساب: {customer_code}"), border=1, align="R")
-    pdf.set_xy(140,54); pdf.cell(60,8, ar(f"رقم الفاتورة: {invoice_number}"), border=1, align="R")
-    pdf.set_xy(140,62); pdf.multi_cell(60,8, ar(f"العنوان: {customer_address}"), border=1, align="R")
+    # بيانات العميل يمين
+    pdf.set_xy(140,30); pdf.cell(60,8, ar("التاريخ:") + " " + datetime.now().strftime('%Y/%m/%d'), border=1, align="R")
+    pdf.set_xy(140,38); pdf.cell(60,8, ar("اسم الحساب:") + " " + customer_name, border=1, align="R")
+    pdf.set_xy(140,46); pdf.cell(60,8, ar("كود الحساب:") + " " + customer_code, border=1, align="R")
+    pdf.set_xy(140,54); pdf.cell(60,8, ar("رقم الفاتورة:") + " " + invoice_number, border=1, align="R")
+    pdf.set_xy(140,62); pdf.multi_cell(60,8, ar("العنوان:") + " " + customer_address, border=1, align="R")
 
     # بيانات الشركة أسفل اللوجو
     pdf.set_font("Graphik","",9)
@@ -99,7 +93,7 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # ---------------- Table Header -----------------
     y_table = 90
-    pdf.set_xy(10, y_table)
+    pdf.set_xy(10,y_table)
     pdf.set_font("Graphik","",11)
     headers = ["اسم الصنف","الكمية","التشغيلة","تاريخ الصلاحية","سعر الجمهور","الخصم","اجمالي القيمة"]
     col_w = [45,20,25,30,25,20,30]
@@ -110,7 +104,6 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # ---------------- Table Data -----------------
     total, total_qty = 0,0
-    y_current = y_table + 10
     pdf.set_font("Graphik","",10)
 
     for item in st.session_state["items"]:
@@ -118,6 +111,7 @@ if st.button("📥 توليد الفاتورة PDF"):
         total += value
         total_qty += item["qty"]
 
+        # صف
         row = [
             item["name"], 
             str(item["qty"]), 
@@ -130,16 +124,28 @@ if st.button("📥 توليد الفاتورة PDF"):
 
         pdf.set_x(10)
         for txt, w in zip(row, col_w):
-            pdf.cell(w,10, ar(txt), 1,0,"C")
+            # النص عربي أو رقم
+            if any("\u0600" <= ch <= "\u06FF" for ch in txt):  
+                pdf.cell(w,10, ar(txt), 1,0,"C")
+            else:
+                pdf.cell(w,10, txt, 1,0,"C")
         pdf.ln()
-        y_current += 10
 
     # ---------------- Summary -----------------
     pdf.ln(8)
     pdf.set_font("Graphik","",12)
-    pdf.cell(65,10, ar("عدد الأصناف: ") + str(len(st.session_state['items'])), border=1)
-    pdf.cell(65,10, ar("عدد العلب: ") + str(total_qty), border=1)
-    pdf.cell(65,10, ar("إجمالي القيمة: ") + str(round(total,2)), border=1, ln=1, align="C")
+
+    # عدد الأصناف
+    pdf.cell(40,10, ar("عدد الأصناف:"), border=1, align="R")
+    pdf.cell(25,10, str(len(st.session_state['items'])), border=1, align="C")
+
+    # عدد العلب
+    pdf.cell(40,10, ar("عدد العلب:"), border=1, align="R")
+    pdf.cell(25,10, str(total_qty), border=1, align="C")
+
+    # إجمالي القيمة
+    pdf.cell(40,10, ar("إجمالي القيمة:"), border=1, align="R")
+    pdf.cell(25,10, str(round(total,2)), border=1, align="C", ln=1)
 
     # ---------------- Footer -----------------
     pdf.set_y(-20)
@@ -156,5 +162,5 @@ if st.button("📥 توليد الفاتورة PDF"):
     filename = "invoice.pdf"
     pdf.output(filename)
 
-    with open(filename, "rb") as f:
+    with open(filename,"rb") as f:
         st.download_button("⬇️ تحميل الفاتورة", f, file_name=filename)
