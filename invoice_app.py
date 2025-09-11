@@ -1,27 +1,24 @@
 import streamlit as st
 import pandas as pd
 from fpdf import FPDF
+from PyPDF2 import PdfReader
 from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
+import os
 
-# ---------------------- دالة تجهيز النص العربي ----------------------
 def ar(txt):
-    if txt is None:
+    if not txt:
         return ""
-    s = str(txt)
-    if not s:
-        return ""
-    return get_display(arabic_reshaper.reshape(s))
+    return get_display(arabic_reshaper.reshape(str(txt)))
 
-# ---------------------- إعداد Streamlit ----------------------
 st.set_page_config(page_title="مولد الفواتير - Begonia Pharma", page_icon="📄")
 st.title("📄 مولد الفواتير - Begonia Pharma")
 
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-# ---------------------- إدخال بيانات العميل ----------------------
+# ============== بيانات العميل ==============
 st.header("بيانات العميل")
 colA, colB, colC = st.columns(3)
 with colA:
@@ -34,7 +31,7 @@ with colC:
 customer_address = st.text_area("العنوان")
 paid_amount = st.number_input("تحصيل الدفع", min_value=0.0, step=10.0)
 
-# ---------------------- إضافة الأصناف ----------------------
+# ============== إضافة الأصناف ==============
 st.header("إضافة الأصناف")
 with st.form("add_item"):
     col1, col2, col3 = st.columns(3)
@@ -61,218 +58,128 @@ with st.form("add_item"):
         )
 
 if st.session_state["items"]:
-    df_prev = pd.DataFrame(st.session_state["items"])
-    df_prev["إجمالي القيمة"] = (df_prev["qty"] * df_prev["price"] * (1 - df_prev["discount"]/100)).round(2)
-    st.table(df_prev)
+    df = pd.DataFrame(st.session_state["items"])
+    df["إجمالي القيمة"] = (df["qty"] * df["price"] * (1 - df["discount"]/100)).round(2)
+    st.table(df)
 else:
     st.info("لم يتم إضافة أي أصناف بعد.")
 
-# ---------------------- توليد الفاتورة ----------------------
+# ============== توليد PDF ==============
 if st.button("📥 توليد الفاتورة PDF"):
 
-    # ألوان وهوامش
-    GREEN = (53, 148, 82)
-    DARK = (60, 60, 60)
-    LIGHT_GREY = (245, 245, 245)
-    PAGE_W, PAGE_H = 210, 297
-    MARGIN = 10
-    CONTENT_W = PAGE_W - 2*MARGIN
+    # التأكد من وجود الملف
+    if not os.path.exists("bill.pdf"):
+        st.error("⚠️ ملف تصميم الفاتورة bill.pdf غير موجود.")
+        st.stop()
 
-    pdf = FPDF("P", "mm", "A4")
-    pdf.add_page()
-    pdf.set_auto_page_break(False)
+    # ====== إعداد PDF ======
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=False)
 
-    # خط عربي
+    # قراءة خلفية pdf وتحويل الصفحة الأولى كصورة
+    from fpdf import template
+    from fpdf.template import Template
+
+    template_path = "bill.pdf"
+
+    # تحميل الخط
     pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
     pdf.set_font("Amiri", "", 12)
 
-    # ---------------- Header background band ----------------
-    pdf.set_fill_color(*LIGHT_GREY)
-    pdf.rect(MARGIN, MARGIN, CONTENT_W, 50, "F")
+    # إضافة الصفحة الأولى بالخلفية
+    pdf.add_page()
+    pdf.set_font("Amiri", "", 12)
 
-    # ---------------- Logo ----------------
-    try:
-        pdf.image("logo.png", x=MARGIN+5, y=MARGIN+4, w=60)
-    except:
-        # لو اللوجو مش موجود نطبع اسم الشركة مكانه
-        pdf.set_text_color(*GREEN)
-        pdf.set_font("Amiri","",22)
-        pdf.set_xy(MARGIN+5, MARGIN+10)
-        pdf.cell(60, 12, ar("Begonia Pharma"), 0, 0, "L")
+    # ✅ إدراج الخلفية باستخدام pdf.image من صورة، نحتاج تحويل الصفحة الأولى من bill.pdf إلى صورة مؤقتة
+    from pdf2image import convert_from_path
 
-    # سجلات الشركة تحت اللوجو
-    pdf.set_font("Amiri","",10)
-    pdf.set_text_color(0,0,0)
-    pdf.set_xy(MARGIN+5, MARGIN+32)
-    pdf.cell(90, 5, ar("سجل تجاري رقم: 158377"), 0, 2, "L")
-    pdf.set_x(MARGIN+5)
-    pdf.cell(90, 5, ar("رقم التسجيل الضريبي: 174-658-610"), 0, 0, "L")
+    pages = convert_from_path("bill.pdf", dpi=200)
+    bg_path = "bg_temp.jpg"
+    pages[0].save(bg_path, "JPEG")
 
-    # ---------------- Title (فاتورة) ----------------
-    pdf.set_font("Amiri","",20)
-    pdf.set_text_color(*GREEN)
-    pdf.set_xy(PAGE_W - MARGIN - 50, MARGIN + 6)
-    pdf.cell(50, 12, ar("فاتورة"), 0, 0, "R")
+    pdf.image(bg_path, x=0, y=0, w=210, h=297)
 
-    # ---------------- Date ----------------
-    pdf.set_font("Amiri","",12)
-    pdf.set_text_color(0,0,0)
-    pdf.set_xy(PAGE_W - MARGIN - 85, MARGIN + 22)
-    pdf.cell(30, 8, ar("التاريخ:"), 0, 0, "R")
-    pdf.cell(55, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "L")
+    # ✅ الكتابة فوق الفاتورة
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Amiri", "", 12)
 
-    # ---------------- Customer info box (right side) ----------------
-    box_row_h = 8
-    w_label = 35
-    w_value = 62
-    box_w = w_label + w_value
-    box_x = MARGIN + CONTENT_W - box_w
-    box_y = MARGIN + 30
+    pdf.set_xy(133, 27)
+    pdf.cell(60, 8, ar(customer_name), 0, 0, "R")
+    pdf.set_xy(133, 35)
+    pdf.cell(60, 8, ar(customer_code), 0, 0, "R")
+    pdf.set_xy(133, 43)
+    pdf.cell(60, 8, ar(invoice_number), 0, 0, "R")
+    pdf.set_xy(30, 51)
+    pdf.multi_cell(160, 6, ar(customer_address), 0, "R")
 
-    pdf.set_draw_color(*GREEN)
-    pdf.set_line_width(0.5)
-    pdf.set_font("Amiri","",12)
+    # التاريخ
+    pdf.set_xy(165, 18)
+    pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
-    # row 1
-    pdf.set_xy(box_x, box_y)
-    pdf.cell(w_value, box_row_h, ar(customer_name), 1, 0, "R")
-    pdf.cell(w_label, box_row_h, ar("اسم الحساب:"), 1, 1, "R")
-    # row 2
-    pdf.set_x(box_x)
-    pdf.cell(w_value, box_row_h, ar(customer_code), 1, 0, "R")
-    pdf.cell(w_label, box_row_h, ar("كود الحساب:"), 1, 1, "R")
-    # row 3
-    pdf.set_x(box_x)
-    pdf.cell(w_value, box_row_h, ar(invoice_number), 1, 0, "R")
-    pdf.cell(w_label, box_row_h, ar("رقم الفاتورة:"), 1, 1, "R")
+    # ========== جدول الأصناف =============
+    pdf.set_xy(10, 80)
+    pdf.set_font("Amiri", "", 10)
 
-    # ---------------- Address line ----------------
-    y_addr = box_y + box_row_h*3 + 6
-    # سطر سفلي خفيف كخط إدخال
-    pdf.set_draw_color(200,200,200)
-    pdf.line(MARGIN, y_addr + 9, MARGIN + CONTENT_W, y_addr + 9)
+    headers = ["اسم الصنف", "الكمية", "التشغيلة", "تاريخ الصلاحية", "سعر الجمهور", "الخصم", "إجمالي القيمة"]
+    col_w = [50, 18, 24, 28, 22, 16, 28]
 
-    # عنوان: على اليمين + النص على اليسار
-    pdf.set_text_color(0,0,0)
-    pdf.set_font("Amiri","",12)
-    # العنوان label
-    pdf.set_xy(PAGE_W - MARGIN - 30, y_addr)
-    pdf.cell(30, 8, ar("العنوان:"), 0, 0, "R")
-    # قيمة العنوان
-    pdf.set_xy(MARGIN, y_addr)
-    pdf.cell(CONTENT_W - 40, 8, ar(customer_address), 0, 0, "R")
-
-    # ---------------- Items table ----------------
-    y_table = y_addr + 16
-    pdf.set_xy(MARGIN, y_table)
-
-    headers = ["اسم الصنف","الكمية","التشغيلة","تاريخ الصلاحية","سعر الجمهور","الخصم","إجمالي القيمة"]
-    # مجموعها = 190
-    col_w = [50, 18, 24, 30, 28, 18, 22]
-
-    pdf.set_draw_color(*GREEN)
-    pdf.set_line_width(0.5)
-    pdf.set_text_color(0,0,0)
-
-    # رؤوس الأعمدة
-    pdf.set_font("Amiri","",11)
     for h, w in zip(headers, col_w):
-        pdf.cell(w, 10, ar(h), 1, 0, "C")
+        pdf.cell(w, 8, ar(h), 1, 0, 'C')
     pdf.ln()
 
-    # بيانات الأصناف
     total, total_qty = 0.0, 0
-    pdf.set_font("Amiri","",10)
 
-    def has_ar(s):
-        if s is None:
+    def has_ar(text):
+        if not text:
             return False
-        for ch in str(s):
-            if "\u0600" <= ch <= "\u06FF":
+        for ch in str(text):
+            if '\u0600' <= ch <= '\u06FF':
                 return True
         return False
 
     for item in st.session_state["items"]:
-        value = float(item["qty"]) * float(item["price"]) * (1 - float(item["discount"])/100)
+        value = float(item["qty"]) * float(item["price"]) * (1 - float(item["discount"]) / 100)
         total += value
         total_qty += int(item["qty"])
-        row_vals = [
+
+        row = [
             item["name"],
-            f"{item['qty']}",
+            str(item["qty"]),
             item["batch"],
             item["expiry"],
             f"{item['price']:.2f}",
             f"{item['discount']}%",
-            f"{value:.2f}",
+            f"{value:.2f}"
         ]
-        pdf.set_x(MARGIN)
-        for txt, w in zip(row_vals, col_w):
-            if has_ar(txt):
-                pdf.cell(w, 9, ar(txt), 1, 0, "C")
-            else:
-                pdf.cell(w, 9, str(txt), 1, 0, "C")
+
+        for txt, w in zip(row, col_w):
+            pdf.cell(w, 9, ar(txt) if has_ar(txt) else txt, 1, 0, 'C')
         pdf.ln()
 
-    # صفوف فارغة لتجميل الجدول (حتى 8 صفوف)
-    max_rows = 8
-    current_rows = len(st.session_state["items"])
-    empty_rows = max(0, max_rows - current_rows)
-    for _ in range(empty_rows):
-        pdf.set_x(MARGIN)
-        for w in col_w:
-            pdf.cell(w, 9, "", 1, 0, "C")
-        pdf.ln()
+    # ========== ملخص الفاتورة ==========
+    pdf.set_font("Amiri", "", 11)
+    pdf.set_xy(125, 220)
+    pdf.cell(40, 8, str(len(st.session_state["items"])), 1, 0, 'C')
+    pdf.cell(40, 8, ar("عدد الأصناف"), 1, 1, 'C')
 
-    # ---------------- Summary table (يمين/يسار كما بالصورة) ----------------
-    pdf.ln(6)
-    summary_y = pdf.get_y()
-    pdf.set_draw_color(*GREEN)
-    pdf.set_line_width(0.5)
-    pdf.set_font("Amiri","",12)
+    pdf.set_x(125)
+    pdf.cell(40, 8, str(total_qty), 1, 0, 'C')
+    pdf.cell(40, 8, ar("عدد العلب"), 1, 1, 'C')
 
-    # جدول من عمودين
-    sum_x = MARGIN + 20
-    sum_w_right = 70   # خلية اليمين (العناوين)
-    sum_w_left  = 70   # خلية اليسار (القيم/عنوانين إضافية)
-    row_h = 10
+    pdf.set_x(125)
+    pdf.cell(40, 8, f"{paid_amount:.2f}", 1, 0, 'C')
+    pdf.cell(40, 8, ar("تحصيل الدفع"), 1, 1, 'C')
 
-    # الصف 1: عدد الاصناف | عدد العلب
-    pdf.set_xy(sum_x, summary_y)
-    pdf.cell(sum_w_left, row_h, ar("عدد العلب"), 1, 0, "C")
-    pdf.cell(sum_w_right, row_h, ar("عدد الاصناف"), 1, 1, "C")
+    pdf.set_x(125)
+    pdf.cell(40, 8, f"{total:.2f}", 1, 0, 'C')
+    pdf.cell(40, 8, ar("إجمالي القيمة"), 1, 1, 'C')
 
-    # الصف 2: قيم عدد العلب/الاصناف
-    pdf.set_x(sum_x)
-    pdf.cell(sum_w_left, row_h, str(total_qty), 1, 0, "C")
-    pdf.cell(sum_w_right, row_h, str(len(st.session_state["items"])), 1, 1, "C")
-
-    # الصف 3: تحصيل الدفع | إجمالي القيمة
-    pdf.set_x(sum_x)
-    pdf.cell(sum_w_left, row_h, f"{paid_amount:.2f}", 1, 0, "C")
-    pdf.cell(sum_w_right, row_h, ar("تحصيل الدفع"), 1, 1, "C")
-
-    pdf.set_x(sum_x)
-    pdf.cell(sum_w_left, row_h, f"{total:.2f}", 1, 0, "C")
-    pdf.cell(sum_w_right, row_h, ar("إجمالي القيمة"), 1, 1, "C")
-
-    # ---------------- Footer ----------------
-    footer_h = 14
-    footer_y = PAGE_H - MARGIN - footer_h
-    pdf.set_fill_color(*GREEN)
-    pdf.rect(MARGIN, footer_y, CONTENT_W, footer_h, "F")
-
-    pdf.set_text_color(255,255,255)
-    pdf.set_font("Amiri","",11)
-    pdf.set_xy(MARGIN, footer_y + 3)
-    pdf.cell(
-        CONTENT_W, 8,
-        ar("📞 01040008105 - 01289982650     🌐 begoniapharma.com     📍 34 Gamal Eldin Dewidar st. With Zaker Heussin st. Nasr City, Cairo, Egypt"),
-        0, 0, "C"
-    )
-
-    # ---------------- إخراج الملف ----------------
-    filename = "invoice.pdf"
+    # ======== حفظ وتحميل ========
+    filename = f"فاتورة_{invoice_number or datetime.now().strftime('%Y%m%d')}.pdf"
     pdf.output(filename)
 
     with open(filename, "rb") as f:
-        st.download_button("⬇️ تحميل الفاتورة", f, file_name=filename)
+        st.download_button("⬇️ تحميل الفاتورة", f, file_name=filename, mime="application/pdf")
+
+    # حذف الصورة المؤقتة
+    os.remove(bg_path)
