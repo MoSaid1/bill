@@ -4,29 +4,34 @@ from fpdf import FPDF
 from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
+import barcode
+from barcode.writer import ImageWriter
 import os
 import re
 
-# دالة إصلاح النص العربي
+# ========== إعداد ==========
+st.set_page_config("مولد فاتورة بباركود", ":bookmark_tabs:")
+st.title("📄 مولد الفاتورة - مع باركود")
+
+# ========== دالة تصليح النص العربي ==========
 def fix_arabic(txt: str) -> str:
-    if not txt:
-        return ""
-    try:
-        reshaped = arabic_reshaper.reshape(str(txt))
-        return get_display(reshaped)
-    except Exception as e:
-        print(f"Error in Arabic reshaping: {e}")
-        return str(txt)
+    if not txt: return ""
+    reshaped = arabic_reshaper.reshape(str(txt))
+    return get_display(reshaped)
 
-# إعداد صفحة Streamlit
-st.set_page_config("مولد فواتير | Begonia Pharma", ":page_facing_up:")
-st.title("📄 مولد الفاتورة - Begonia Pharma")
+# ========== دالة توليد باركود ==========
+def generate_barcode(data, filename="barcode"):
+    code128 = barcode.get_barcode_class('code128')
+    bar = code128(data, writer=ImageWriter(), add_checksum=False)
+    fullpath = bar.save(filename)
+    return fullpath
 
+# ========== تخزين الأصناف ==========
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-# ===== إدخال بيانات العميل =====
-st.header("بيانات العميل")
+# ========== بيانات العميل ==========
+st.header("👨‍💼 بيانات العميل")
 col1, col2, col3 = st.columns(3)
 with col1:
     customer_name = st.text_input("اسم الحساب")
@@ -34,21 +39,37 @@ with col2:
     customer_code = st.text_input("كود الحساب")
 with col3:
     invoice_number = st.text_input("رقم الفاتورة")
-customer_address = st.text_area("العنوان")
 
-# ===== المدفوعات والخصومات =====
+customer_address = st.text_area("📍 العنوان")
+
+# ========== خصومات ==========
 st.header("💲 المدفوعات والخصومات")
-colp1, colp2, colp3 = st.columns(3)
+colp1, colp2 = st.columns(2)
 with colp1:
     paid_amount = st.number_input("تحصيل الدفع", min_value=0.0, step=10.0)
-with colp2:
-    early_discount = st.number_input("📉 خصم تعجيل الدفع (%)", min_value=0.0, max_value=100.0, step=0.5, value=0.0)
-with colp3:
-    extra_discount = st.number_input("📦 خصم إضافي عام (%)", min_value=0.0, max_value=100.0, step=0.5, value=0.0)
 
-# ===== إدخال الأصناف =====
+with colp2:
+    apply_early = st.checkbox("📉 تفعيل خصم تعجيل الدفع")
+    early_discount = 0.0
+    if apply_early:
+        early_discount = st.number_input("نسبة خصم تعجيل الدفع (%)", min_value=0.0, max_value=100.0, step=0.5)
+
+apply_extra = st.checkbox("📦 تفعيل خصم إضافي")
+extra_discount = 0.0
+if apply_extra:
+    extra_discount = st.number_input("نسبة خصم إضافي (%)", min_value=0.0, max_value=100.0, step=0.5)
+
+# ========== تحكم في الباركود ==========
+st.header("🏷️ إعدادات الباركود")
+col_x, col_y = st.columns(2)
+with col_x:
+    barcode_x = st.number_input("📍 إحداثي X", min_value=0, max_value=200, value=150)
+with col_y:
+    barcode_y = st.number_input("📍 إحداثي Y", min_value=0, max_value=280, value=260)
+
+# ========== الأصناف ==========
 st.header("🧪 إضافة الأصناف")
-with st.form("add-item"):
+with st.form("add_item"):
     c1, c2, c3 = st.columns(3)
     with c1:
         name = st.text_input("اسم الصنف")
@@ -65,7 +86,7 @@ with st.form("add-item"):
     with c6:
         discount = st.number_input("الخصم (%)", min_value=0.0, max_value=100.0, step=0.5)
 
-    if st.form_submit_button("➕ إضافة"):
+    if st.form_submit_button("➕ أضف"):
         st.session_state["items"].append({
             "name": name,
             "qty": qty,
@@ -75,39 +96,32 @@ with st.form("add-item"):
             "discount": discount
         })
 
-# ===== عرض الأصناف =====
+# ========== عرض الأصناف ==========
 if st.session_state["items"]:
     df = pd.DataFrame(st.session_state["items"])
-    df["إجمالي القيمة"] = (
-        df["qty"] * df["price"] * (1 - df["discount"] / 100)
-    ).round(2)
+    df["إجمالي"] = (df["qty"] * df["price"] * (1 - df["discount"] / 100)).round(2)
     st.table(df)
 else:
-    st.info("لم يتم إدخال أي أصناف حتى الآن.")
+    st.info("لم يتم إدخال أصناف بعد.")
 
-# ===== توليد الفاتورة PDF =====
-if st.button("📥 توليد الفاتورة PDF"):
-
+# ========== توليد الفاتورة ==========
+if st.button("📄 توليد الفاتورة PDF"):
     if not os.path.exists("bill.jpg"):
-        st.error("❗ يجب وجود ملف الخلفية bill.jpg")
+        st.error("❌ الخلفية bill.jpg غير موجودة")
         st.stop()
 
     if not os.path.exists("Amiri-Regular.ttf"):
-        st.error("❗ يجب وجود ملف الخط Amiri-Regular.ttf")
+        st.error("❌ الخط Amiri-Regular.ttf غير موجود")
         st.stop()
 
     pdf = FPDF()
     pdf.add_page()
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
-    try:
-        pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
-        pdf.set_font("Amiri", "", 12)
-    except Exception as e:
-        st.error(f"فشل تحميل الخط: {e}")
-        st.stop()
+    pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
+    pdf.set_font("Amiri", "", 12)
 
-    # بيانات العميل
+    # ========== بيانات العميل ==========
     pdf.set_xy(105, 25)
     pdf.cell(60, 8, fix_arabic(customer_name), 0, 0, "R")
     pdf.set_xy(105, 35)
@@ -120,26 +134,23 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
     # جدول الأصناف
-    headers = ["إجمالي القيمة", "الخصم", "سعر الجمهور", "تاريخ الصلاحية", "التشغيلة", "الكمية", "اسم الصنف"]
-    col_w = [28, 18, 24, 24, 22, 16, 48]
+    headers = ["إجمالي", "الخصم", "السعر", "الصلاحية", "تشغيلة", "الكمية", "اسم الصنف"]
+    col_w = [28, 18, 24, 22, 22, 16, 48]
     x_center = (210 - sum(col_w)) / 2
-    table_y = 80
-
-    total = 0.0
-    total_qty = 0
-
-    pdf.set_xy(x_center, table_y)
-    pdf.set_font("Amiri", "", 10)
+    pdf.set_xy(x_center, 80)
     pdf.set_fill_color(230, 230, 230)
+    pdf.set_font("Amiri", "", 9)
     for h, w in zip(headers, col_w):
         pdf.cell(w, 8, fix_arabic(h), 1, 0, 'C', fill=True)
     pdf.ln()
 
-    pdf.set_fill_color(255, 255, 255)
+    total = 0
+    total_qty = 0
     for item in st.session_state["items"]:
-        val = item["qty"] * item["price"] * (1 - item["discount"] / 100)
+        val = item['qty'] * item['price'] * (1 - item['discount'] / 100)
         total += val
         total_qty += item["qty"]
+
         row = [
             fix_arabic(f"{val:.2f}"),
             fix_arabic(f"{item['discount']}%"),
@@ -150,56 +161,55 @@ if st.button("📥 توليد الفاتورة PDF"):
             fix_arabic(item["name"])
         ]
         pdf.set_x(x_center)
-        for text, w in zip(row, col_w):
-            pdf.cell(w, 9, text, 1, 0, 'C')
+        for val, w in zip(row, col_w):
+            pdf.cell(w, 9, val, 1, 0, 'C')
         pdf.ln()
 
+    # الخصومات
     original_total = total
-
-    # ===== تطبيق الخصومات
-    if early_discount > 0:
+    if apply_early and early_discount > 0:
         total *= (1 - early_discount / 100)
 
-    if extra_discount > 0:
+    if apply_extra and extra_discount > 0:
         total *= (1 - extra_discount / 100)
 
-    # ===== ملخص الفاتورة
-    pdf.set_font("Amiri", "", 11)
-    start_y = 220
-    line_height = 8
-
-    pdf.set_xy(125, start_y)
-    pdf.cell(40, line_height, fix_arabic(str(len(st.session_state["items"]))), 1, 0, 'C')
-    pdf.cell(40, line_height, fix_arabic("عدد الأصناف"), 1, 1, 'C')
+    # ملخص الفاتورة
+    pdf.set_font("Amiri", "", 10)
+    pdf.set_xy(125, 220)
+    pdf.cell(40, 8, fix_arabic(str(len(st.session_state["items"]))), 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic("عدد الأصناف"), 1, 1, 'C')
 
     pdf.set_x(125)
-    pdf.cell(40, line_height, fix_arabic(str(total_qty)), 1, 0, 'C')
-    pdf.cell(40, line_height, fix_arabic("عدد العلب"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic(str(total_qty)), 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic("عدد العلب"), 1, 1, 'C')
 
     pdf.set_x(125)
-    pdf.cell(40, line_height, fix_arabic(f"{paid_amount:.2f}"), 1, 0, 'C')
-    pdf.cell(40, line_height, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic(f"{paid_amount:.2f}"), 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
 
-    if early_discount > 0:
+    if apply_early and early_discount > 0:
         pdf.set_x(125)
-        pdf.cell(40, line_height, fix_arabic(f"{early_discount}%"), 1, 0, 'C')
-        pdf.cell(40, line_height, fix_arabic("خصم تعجيل الدفع"), 1, 1, 'C')
+        pdf.cell(40, 8, fix_arabic(f"{early_discount}%"), 1, 0, 'C')
+        pdf.cell(40, 8, fix_arabic("خصم تعجيل الدفع"), 1, 1, 'C')
 
-    if extra_discount > 0:
+    if apply_extra and extra_discount > 0:
         pdf.set_x(125)
-        pdf.cell(40, line_height, fix_arabic(f"{extra_discount}%"), 1, 0, 'C')
-        pdf.cell(40, line_height, fix_arabic("خصم إضافي عام"), 1, 1, 'C')
+        pdf.cell(40, 8, fix_arabic(f"{extra_discount}%"), 1, 0, 'C')
+        pdf.cell(40, 8, fix_arabic("خصم إضافي عام"), 1, 1, 'C')
 
     pdf.set_x(125)
-    pdf.cell(40, line_height, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
-    pdf.cell(40, line_height, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
+    pdf.cell(40, 8, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
+    pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
-    # اسم الملف
+    # توليد الباركود من رقم الفاتورة
+    barcode_path = generate_barcode(invoice_number or "00000", "barcode_image")
+    pdf.image(barcode_path, x=barcode_x, y=barcode_y, w=40)
+
     today_str = datetime.now().strftime("%Y-%m-%d")
-    safe_invoice = re.sub(r'\W+', '_', invoice_number or "بدون_رقم")
+    safe_invoice = re.sub(r'\W+', '_', invoice_number or "no_number")
     filename = f"فاتورة_{safe_invoice}_{today_str}.pdf"
     pdf.output(filename)
 
     with open(filename, "rb") as f:
-        st.success("✅ تم توليد الفاتورة!")
-        st.download_button("⬇️ تحميل الفاتورة", f, file_name=filename, mime="application/pdf")
+        st.success("✅ تم توليد الفاتورة مع الباركود!")
+        st.download_button("⬇️ تحميل PDF", f, file_name=filename, mime="application/pdf")
