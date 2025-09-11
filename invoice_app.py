@@ -12,10 +12,7 @@ def fix_arabic(txt: str) -> str:
     if not txt:
         return ""
     try:
-        reshaped = arabic_reshaper.reshape(
-            str(txt),
-            reshape_options=arabic_reshaper.config.RLM_ON_RIGHT_AND_LEFT
-        )
+        reshaped = arabic_reshaper.reshape(str(txt))
         return get_display(reshaped)
     except Exception as e:
         print(f"Error in Arabic reshaping: {e}")
@@ -82,12 +79,11 @@ else:
 # ===== توليد الفاتورة PDF =====
 if st.button("📥 توليد الفاتورة PDF"):
 
-    # التحقق من وجود ملف الخلفية
+    # التحقق من وجود الملفات
     if not os.path.exists("bill.jpg"):
         st.error("❗ يجب وجود ملف الخلفية bill.jpg")
         st.stop()
 
-    # التحقق من وجود ملف الخط
     if not os.path.exists("Amiri-Regular.ttf"):
         st.error("❗ يجب وجود ملف الخط Amiri-Regular.ttf")
         st.stop()
@@ -138,16 +134,15 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     pdf.set_xy(x_center, table_y)
     pdf.set_font("Amiri", "", 10)
-
-    # --- الهيدر بخلفية رمادية ---
     pdf.set_x(x_center)
     pdf.set_fill_color(230, 230, 230)
+
     for h, w in zip(headers, col_w):
         pdf.cell(w, 8, fix_arabic(h), 1, 0, 'C', fill=True)
     pdf.ln()
 
-    # --- الأصناف ---
     pdf.set_fill_color(255, 255, 255)
+
     for item in st.session_state["items"]:
         val = item["qty"] * item["price"] * (1 - item["discount"] / 100)
         total += val
@@ -157,15 +152,15 @@ if st.button("📥 توليد الفاتورة PDF"):
             fix_arabic(f"{val:.2f}"),
             fix_arabic(f"{item['discount']}%"),
             fix_arabic(f"{item['price']:.2f}"),
-            fix_arabic(item['expiry']),
-            fix_arabic(item['batch']),
-            fix_arabic(str(item['qty'])),
-            fix_arabic(item['name'])
+            fix_arabic(item["expiry"]),
+            fix_arabic(item["batch"]),
+            fix_arabic(str(item["qty"])),
+            fix_arabic(item["name"])
         ]
 
         pdf.set_x(x_center)
-        for txt, w in zip(row, col_w):
-            pdf.cell(w, 9, txt, 1, 0, 'C')
+        for text, w in zip(row, col_w):
+            pdf.cell(w, 9, text, 1, 0, 'C')
         pdf.ln()
 
     # --- ملخص الفاتورة ---
@@ -183,7 +178,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(40, 8, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
-    # --- اسم الملف شامل التاريخ ---
+    # --- اسم الملف ---
     today_str = datetime.now().strftime("%Y-%m-%d")
     safe_invoice = re.sub(r'\W+', '_', invoice_number or "بدون_رقم")
     filename = f"فاتورة_{safe_invoice}_{today_str}.pdf"
