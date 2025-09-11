@@ -13,7 +13,7 @@ class InvoicePDF(FPDF):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # تسجيل خط Graphik Arabic
-        self.add_font("GraphikArabic", "", "fonts/GRAPHIK ARABIC SEMIBOLD.OTF", uni=True)
+        self.add_font("GraphikArabic", "", "GRAPHIK ARABIC SEMIBOLD.OTF", uni=True)
 
     def header(self):
         self.set_font("GraphikArabic", "", 18)
