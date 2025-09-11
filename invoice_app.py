@@ -91,7 +91,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(60, 8, ar(invoice_number), 0, 0, "R")
     pdf.set_xy(20, 53)
     pdf.multi_cell(160, 6, ar(customer_address), 0, "R")
-    pdf.set_xy(100, 16)
+    pdf.set_xy(105, 16)
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
     # ---------- جدول الأصناف ----------
