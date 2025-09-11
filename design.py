@@ -8,6 +8,11 @@ def ar_text(txt):
     return get_display(arabic_reshaper.reshape(txt))
 
 class InvoicePDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.add_font("Graphik", "", "GRAPHIK ARABIC BLACK.OTF", uni=True)
+        self.add_font("Graphik", "B", "GRAPHIK ARABIC BLACK.OTF", uni=True)
+
     def header(self):
         self.set_font("Graphik", "B", 18)
         self.cell(0, 10, ar_text("فاتورة"), ln=True, align="C")
