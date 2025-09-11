@@ -5,6 +5,7 @@ from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
 import os
+import re
 
 def ar(txt):
     if not txt:
@@ -12,7 +13,7 @@ def ar(txt):
     return get_display(arabic_reshaper.reshape(str(txt)))
 
 st.set_page_config("مولد فواتير | Begonia Pharma", "📄")
-st.title("📄 مولد الفواتير - Begonia Pharma")
+st.title("📄 مولد الفاتورة - Begonia Pharma")
 
 if "items" not in st.session_state:
     st.session_state["items"] = []
@@ -66,10 +67,9 @@ if st.session_state["items"]:
 else:
     st.info("لم يتم إدخال أي أصناف حتى الآن.")
 
-# ---------- توليد الفاتورة ----------
+# ============ توليد الفاتورة PDF ============
 if st.button("📥 توليد الفاتورة PDF"):
 
-    # التحقق من وجود الخلفية
     if not os.path.exists("bill.jpg"):
         st.error("❗ ملف الخلفية 'bill.jpg' غير موجود في المجلد.")
         st.stop()
@@ -78,12 +78,11 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.add_page()
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
-    # إعداد الخط
     pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
     pdf.set_font("Amiri", "", 12)
     pdf.set_text_color(0, 0, 0)
 
-    # ------- إدخال البيانات في أماكنها -------
+    # ========= بيانات العميل =========
     pdf.set_xy(105, 25)
     pdf.cell(60, 8, ar(customer_name), 0, 0, "R")
     pdf.set_xy(105, 35)
@@ -95,18 +94,19 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_xy(120, 14)
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
-    # ---------- جدول الأصناف ----------
+    # ========== جدول الأصناف ==========
     table_y = 80
     headers = ["إجمالي القيمة", "الخصم", "سعر الجمهور", "تاريخ الصلاحية", "التشغيلة", "الكمية", "اسم الصنف"]
-    col_w = [28, 18, 24, 24, 22, 16, 48]
+    col_w =     [28,             18,      24,          24,             22,        16,         48]
+    table_width = sum(col_w)
+    x_center = (210 - table_width) / 2  # 15mm لتوسيط الجدول
 
     total = 0.0
     total_qty = 0
 
-    pdf.set_xy(10, table_y)
+    pdf.set_xy(x_center, table_y)
     pdf.set_font("Amiri", "", 10)
 
-    # عنوان الأعمدة
     for h, w in zip(headers, col_w):
         pdf.cell(w, 8, ar(h), 1, 0, 'C')
     pdf.ln()
@@ -132,12 +132,13 @@ if st.button("📥 توليد الفاتورة PDF"):
             item["name"]
         ]
 
+        pdf.set_x(x_center)
         for val_txt, w in zip(row, col_w):
             txt = ar(val_txt) if has_ar(val_txt) else str(val_txt)
             pdf.cell(w, 9, txt, 1, 0, 'C')
         pdf.ln()
 
-    # ---------- ملخص ----------
+    # ========== ملخص ==========
     pdf.set_font("Amiri", "", 11)
     pdf.set_xy(125, 220)
     pdf.cell(40, 8, str(len(st.session_state["items"])), 1, 0, 'C')
@@ -152,7 +153,10 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(40, 8, f"{total:.2f}", 1, 0, 'C')
     pdf.cell(40, 8, ar("إجمالي القيمة"), 1, 1, 'C')
 
-    filename = f"فاتورة_{invoice_number or datetime.now().strftime('%Y%m%d')}.pdf"
+    # ===== إنشاء اسم ملف يحتوي على رقم الفاتورة والتاريخ =====
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    safe_invoice = re.sub(r'\W+', '_', invoice_number or "بدون_رقم")  # إزالة الرموز غير مسموحة
+    filename = f"فاتورة_{safe_invoice}_{today_str}.pdf"
     pdf.output(filename)
 
     with open(filename, "rb") as f:
