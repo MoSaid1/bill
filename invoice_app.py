@@ -23,7 +23,7 @@ if "items" not in st.session_state:
 st.header("بيانات العميل")
 col1, col2, col3 = st.columns(3)
 with col1:
-    customer_name = st.text_input("اسم الحساب")
+    customer_name = st.text_input("ااسم االحساب")
 with col2:
     customer_code = st.text_input("كود الحساب")
 with col3:
