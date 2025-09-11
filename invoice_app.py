@@ -137,9 +137,9 @@ if st.button("📥 توليد الفاتورة PDF"):
     # ---------------- Summary -----------------
     pdf.ln(8)
     pdf.set_font("Graphik","",12)
-    pdf.cell(65,10, ar(f"عدد الأصناف: {len(st.session_state['items'])}"), border=1)
-    pdf.cell(65,10, ar(f"عدد العلب: {total_qty}"), border=1)
-    pdf.cell(65,10, ar(f"إجمالي القيمة: {round(total,2)}"), border=1, ln=1, align="C")
+    pdf.cell(65,10, ar("عدد الأصناف: ") + str(len(st.session_state['items'])), border=1)
+    pdf.cell(65,10, ar("عدد العلب: ") + str(total_qty), border=1)
+    pdf.cell(65,10, ar("إجمالي القيمة: ") + str(round(total,2)), border=1, ln=1, align="C")
 
     # ---------------- Footer -----------------
     pdf.set_y(-20)
