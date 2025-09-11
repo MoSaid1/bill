@@ -1,5 +1,7 @@
 streamlit
-fpdf
+fpdf>=2.7.6
 arabic-reshaper
 python-bidi
 pandas
+python-barcode
+Pillow
