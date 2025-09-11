@@ -9,7 +9,7 @@ import re
 import urllib.parse
 import urllib.request
 
-# جرّب استيراد segno، ولو مش موجود هنستخدم API بدون مكتبات
+# جرّب استيراد segno، ولو مش موجود هنستخدم API خارجي كـ fallback
 try:
     import segno  # QR code library
 except Exception:
@@ -25,19 +25,18 @@ def generate_qrcode(data, filename="qrcode.png", size=200):
     data = str(data or "")
     if segno is not None:
         qr = segno.make(data)
-        # scale يعتمد على الحجم المطلوب (تقريبي)
-        scale = max(2, int(size / 50))
-        qr.save(filename, scale=scale)
+        scale = max(2, int(size / 50))  # مقياس تقديري للحجم
+        qr.save(filename, scale=scale)  # يحفظ PNG
         return filename
-    # Fallback عبر API (بدون أي مكتبات خارجية)
-    url = "https://api.qrserver.com/v1/create-qr-code/?size=" + f"{size}x{size}" + "&data=" + urllib.parse.quote(data)
+    # Fallback عبر API خارجي (لا يحتاج أي مكتبات إضافية)
+    url = f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data=" + urllib.parse.quote(data)
     with urllib.request.urlopen(url, timeout=10) as resp:
         png = resp.read()
     with open(filename, "wb") as f:
         f.write(png)
     return filename
 
-# ===== تخزين الأصناف في الجلسة =====
+# ===== حالة الجلسة للأصناف =====
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
@@ -56,7 +55,7 @@ with col3:
 
 customer_address = st.text_area("📍 عنوان العميل")
 
-# ===== خصومات ومدفوعات =====
+# ===== المدفوعات والخصومات =====
 st.header("💲 المدفوعات والخصومات")
 col_a, col_b = st.columns(2)
 
@@ -64,25 +63,24 @@ with col_a:
     paid_amount = st.number_input("💵 تحصيل الدفع", min_value=0.0, step=10.0)
 
 with col_b:
-    apply_early = st.checkbox("📉 خصم تعجيل الدفع؟")
+    apply_early = st.checkbox("📉 تفعيل خصم تعجيل الدفع؟")
     early_discount = 0.0
     if apply_early:
         early_discount = st.number_input("نسبة خصم تعجيل الدفع (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
-apply_extra = st.checkbox("📦 خصم إضافي عام؟")
+apply_extra = st.checkbox("📦 تفعيل خصم إضافي عام؟")
 extra_discount = 0.0
 if apply_extra:
-    extra_discount = st.number_input("نسبة خصم إضافي (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
+    extra_discount = st.number_input("نسبة خصم إضافي عام (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
-# ===== تحكم في مكان QR Code =====
+# ===== تحكم في مكان QR Code داخل PDF =====
 st.header("🧭 تحكم في مكان QR Code داخل PDF")
 colx, coly = st.columns(2)
 with colx:
-    qr_x = st.number_input("📍 X", min_value=0, max_value=200, value=150, step=1)
+    qr_x = st.number_input("📍 X (بالملّيمتر)", min_value=0, max_value=200, value=150, step=1)
 with coly:
-    qr_y = st.number_input("📍 Y", min_value=0, max_value=280, value=260, step=1)
+    qr_y = st.number_input("📍 Y (بالملّيمتر)", min_value=0, max_value=280, value=260, step=1)
 
-# معلومة عن الـ backend المستخدم
 st.caption("مولد QR المستخدم: " + ("segno (محلي)" if segno is not None else "API خارجي (بدون تثبيت مكتبات)"))
 
 # ===== إضافة الأصناف =====
@@ -122,22 +120,22 @@ if st.session_state["items"]:
 else:
     st.info("لم يتم إدخال أصناف بعد.")
 
-# ===== زر توليد PDF =====
+# ===== توليد PDF =====
 if st.button("📥 توليد الفاتورة PDF"):
 
-    # ===== تحقق من الملفات =====
+    # تحقق من الملفات المطلوبة
     if not os.path.exists("bill.jpg") or not os.path.exists("Amiri-Regular.ttf"):
         st.error("❗ تأكد من وجود bill.jpg وAmiri-Regular.ttf في نفس المجلد")
         st.stop()
 
-    # ===== أضف صفحة PDF وخلفية =====
+    # إنشاء الـ PDF وإضافة الخلفية
     pdf = FPDF()
     pdf.add_page()
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
     pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
     pdf.set_font("Amiri", "", 11)
 
-    # ===== بيانات العميل =====
+    # بيانات العميل
     pdf.set_xy(105, 25)
     pdf.cell(60, 8, fix_arabic(customer_name), 0, 0, "R")
     pdf.set_xy(105, 35)
@@ -150,7 +148,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_xy(120, 14)
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
-    # ===== جدول الأصناف =====
+    # جدول الأصناف
     headers = ["الإجمالي", "الخصم", "السعر", "الصلاحية", "تشغيلة", "الكمية", "الصنف"]
     col_w = [28, 18, 24, 22, 22, 16, 48]
     x_center = (210 - sum(col_w)) / 2
@@ -181,14 +179,13 @@ if st.button("📥 توليد الفاتورة PDF"):
             pdf.cell(w, 9, val, 1, 0, 'C')
         pdf.ln()
 
-    # ===== تطبيق الخصومات =====
+    # تطبيق الخصومات
     if apply_early and early_discount > 0:
         total *= (1 - early_discount / 100)
-
     if apply_extra and extra_discount > 0:
         total *= (1 - extra_discount / 100)
 
-    # ===== ملخص الفاتورة =====
+    # ملخص الفاتورة
     pdf.set_font("Amiri", "", 11)
     pdf.set_xy(125, 220)
     pdf.cell(40, 8, fix_arabic(str(len(st.session_state["items"]))), 1, 0, 'C')
@@ -210,17 +207,17 @@ if st.button("📥 توليد الفاتورة PDF"):
     if apply_extra and extra_discount > 0:
         pdf.set_x(125)
         pdf.cell(40, 8, fix_arabic(f"{extra_discount}%"), 1, 0, 'C')
-        pdf.cell(40, 8, fix_arabic("خصم إضافي"), 1, 1, 'C')
+        pdf.cell(40, 8, fix_arabic("خصم إضافي عام"), 1, 1, 'C')
 
     pdf.set_x(125)
     pdf.cell(40, 8, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
-    # ===== توليد وإدراج QR Code =====
+    # توليد وإدراج QR Code في المكان المحدد
     qr_path = generate_qrcode(invoice_number or "00000", filename="qrcode.png", size=200)
-    pdf.image(qr_path, x=qr_x, y=qr_y, w=30)
+    pdf.image(qr_path, x=qr_x, y=qr_y, w=30)  # تحكم في الموقع عبر X و Y
 
-    # ===== حفظ الفاتورة =====
+    # حفظ وتنزيل الفاتورة
     invoice_safe = re.sub(r'\W+', '_', invoice_number or "no_number")
     filename = f"فاتورة_{invoice_safe}_{datetime.now().strftime('%Y-%m-%d')}.pdf"
     pdf.output(filename)
