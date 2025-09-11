@@ -5,15 +5,14 @@ from datetime import datetime
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-
-# ================== دالة للعربي ==================
-def ar(text):
-    if not text:
+# ========= دالة لضبط النص العربي =========
+def ar(txt):
+    if not txt:
         return ""
-    return get_display(arabic_reshaper.reshape(str(text)))
+    return get_display(arabic_reshaper.reshape(str(txt)))
 
 
-# ================== Streamlit ==================
+# ========= إعداد صفحة Streamlit =========
 st.set_page_config(page_title="مولد الفواتير - Begonia Pharma", page_icon="📄")
 st.title("📄 مولد الفواتير - Begonia Pharma")
 
@@ -21,14 +20,14 @@ if "items" not in st.session_state:
     st.session_state["items"] = []
 
 
-# ================== بيانات العميل ==================
+# --------- إدخال بيانات العميل ----------
 st.header("بيانات العميل")
 customer_name = st.text_input("اسم الحساب")
 customer_code = st.text_input("كود الحساب")
 invoice_number = st.text_input("رقم الفاتورة")
 customer_address = st.text_area("العنوان")
 
-# ================== إضافة الأصناف ==================
+# --------- إدخال الأصناف -----------
 st.header("إضافة الأصناف")
 with st.form("add_item"):
     col1, col2, col3 = st.columns(3)
@@ -60,50 +59,51 @@ with st.form("add_item"):
             }
         )
 
+# عرض الأصناف
 if st.session_state["items"]:
     st.table(pd.DataFrame(st.session_state["items"]))
 else:
     st.info("لم يتم إضافة أي أصناف بعد.")
 
 
-# ================== توليد الفاتورة ==================
+# ========= توليد الفاتورة =========
 if st.button("📥 توليد الفاتورة PDF"):
 
     pdf = FPDF("P", "mm", "A4")
     pdf.add_page()
 
-    # تحميل خط عربي (مثال خط Amiri)
-    pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
-    pdf.set_font("Amiri", "", 12)
+    # تحميل خط Graphik Arabic
+    pdf.add_font("Graphik", "", "GRAPHIK ARABIC SEMIBOLD.OTF", uni=True)
+    pdf.set_font("Graphik", "", 12)
 
     # ---- Header ----
-    pdf.image("logo.png", x=10, y=10, w=40)  # لو عندك PNG للوجو
+    pdf.image("logo.png", x=10, y=10, w=40)  # ضع اللوجو PNG
     pdf.set_xy(170, 15)
-    pdf.set_font("Amiri", "", 16)
+    pdf.set_font("Graphik", "", 16)
     pdf.set_text_color(53, 148, 82)
     pdf.cell(30, 10, ar("فاتورة"), align="R")
 
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Amiri", "", 10)
+    pdf.set_font("Graphik", "", 10)
 
-    # بيانات العميل (في مربعات)
+    # خانات بيانات العميل
     pdf.set_xy(140, 30)
-    pdf.multi_cell(60, 8, ar("التاريخ: ") + datetime.now().strftime("%Y/%m/%d"), border=1, align="R")
+    pdf.cell(60, 8, ar("التاريخ: ") + datetime.now().strftime("%Y/%m/%d"), border=1, align="R")
 
     pdf.set_xy(140, 38)
-    pdf.multi_cell(60, 8, ar("اسم الحساب: ") + customer_name, border=1, align="R")
+    pdf.cell(60, 8, ar("اسم الحساب: ") + customer_name, border=1, align="R")
 
     pdf.set_xy(140, 46)
-    pdf.multi_cell(60, 8, ar("كود الحساب: ") + customer_code, border=1, align="R")
+    pdf.cell(60, 8, ar("كود الحساب: ") + customer_code, border=1, align="R")
 
     pdf.set_xy(140, 54)
-    pdf.multi_cell(60, 8, ar("رقم الفاتورة: ") + invoice_number, border=1, align="R")
+    pdf.cell(60, 8, ar("رقم الفاتورة: ") + invoice_number, border=1, align="R")
 
     pdf.set_xy(140, 62)
     pdf.multi_cell(60, 8, ar("العنوان: ") + customer_address, border=1, align="R")
 
     # بيانات الشركة
-    pdf.set_font("Amiri", "", 9)
+    pdf.set_font("Graphik", "", 9)
     pdf.set_xy(15, 55)
     pdf.cell(80, 6, ar("سجل تجاري رقم: 158377"))
     pdf.set_xy(15, 61)
@@ -112,16 +112,8 @@ if st.button("📥 توليد الفاتورة PDF"):
     # ---- Table Header ----
     y_table = 90
     pdf.set_xy(10, y_table)
-    pdf.set_font("Amiri", "", 11)
-    headers = [
-        "اسم الصنف",
-        "الكمية",
-        "التشغيلة",
-        "تاريخ الصلاحية",
-        "سعر الجمهور",
-        "الخصم",
-        "اجمالي القيمة",
-    ]
+    pdf.set_font("Graphik", "", 11)
+    headers = ["اسم الصنف", "الكمية", "التشغيلة", "تاريخ الصلاحية", "سعر الجمهور", "الخصم", "اجمالي القيمة"]
     col_w = [45, 20, 25, 30, 25, 20, 30]
 
     for h, w in zip(headers, col_w):
@@ -130,7 +122,7 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # ---- Table Data ----
     total, total_qty = 0, 0
-    pdf.set_font("Amiri", "", 10)
+    pdf.set_font("Graphik", "", 10)
 
     for item in st.session_state["items"]:
         value = item["qty"] * item["price"] * (1 - item["discount"] / 100)
@@ -157,7 +149,7 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # ---- Summary ----
     pdf.ln(8)
-    pdf.set_font("Amiri", "", 12)
+    pdf.set_font("Graphik", "", 12)
 
     # عدد الأصناف
     pdf.cell(40, 10, ar("عدد الأصناف:"), border=1, align="R")
@@ -173,22 +165,20 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # ---- Footer ----
     pdf.set_y(-20)
-    pdf.set_font("Amiri", "", 9)
+    pdf.set_font("Graphik", "", 9)
     pdf.set_text_color(255, 255, 255)
     pdf.set_fill_color(47, 105, 151)
     pdf.cell(
         0,
         8,
-        ar(
-            "📞 01040008105 - 01289982650     🌐 begoniapharma.com     📍 34 Gamal Eldin Dewidar st. With Zaker Heussin st. Nasr City, Cairo, Egypt"
-        ),
+        ar("📞 01040008105 - 01289982650     🌐 begoniapharma.com     📍 34 Gamal Eldin Dewidar st. With Zaker Heussin st. Nasr City, Cairo, Egypt"),
         0,
         0,
         "C",
         True,
     )
 
-    # ---- حفظ الملف ----
+    # ---- Output ----
     filename = "invoice.pdf"
     pdf.output(filename)
 
