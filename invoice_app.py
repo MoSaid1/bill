@@ -6,41 +6,17 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 import os
 import re
-import urllib.parse
-import urllib.request
-
-# جرّب استيراد segno، ولو مش موجود هنستخدم API خارجي كـ fallback
-try:
-    import segno  # QR code library
-except Exception:
-    segno = None
 
 # ===== إصلاح الكتابة العربية =====
 def fix_arabic(txt):
     reshaped = arabic_reshaper.reshape(str(txt))
     return get_display(reshaped)
 
-# ===== توليد QR Code (segno إن وجد، وإلا API خارجي) =====
-def generate_qrcode(data, filename="qrcode.png", size=200):
-    data = str(data or "")
-    if segno is not None:
-        qr = segno.make(data)
-        scale = max(2, int(size / 50))  # مقياس تقديري للحجم
-        qr.save(filename, scale=scale)  # يحفظ PNG
-        return filename
-    # Fallback عبر API خارجي (لا يحتاج أي مكتبات إضافية)
-    url = f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data=" + urllib.parse.quote(data)
-    with urllib.request.urlopen(url, timeout=10) as resp:
-        png = resp.read()
-    with open(filename, "wb") as f:
-        f.write(png)
-    return filename
-
 # ===== حالة الجلسة للأصناف =====
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-st.set_page_config(page_title="فاتورة مع QR | Begonia", page_icon=":page_facing_up:")
+st.set_page_config(page_title="فاتورة | Begonia", page_icon=":page_facing_up:")
 st.title("📄 مولد فاتورة - Begonia Pharma")
 
 # ===== بيانات العميل =====
@@ -72,16 +48,6 @@ apply_extra = st.checkbox("📦 تفعيل خصم إضافي عام؟")
 extra_discount = 0.0
 if apply_extra:
     extra_discount = st.number_input("نسبة خصم إضافي عام (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
-
-# ===== تحكم في مكان QR Code داخل PDF =====
-st.header("🧭 تحكم في مكان QR Code داخل PDF")
-colx, coly = st.columns(2)
-with colx:
-    qr_x = st.number_input("📍 X (بالملّيمتر)", min_value=0, max_value=200, value=150, step=1)
-with coly:
-    qr_y = st.number_input("📍 Y (بالملّيمتر)", min_value=0, max_value=280, value=260, step=1)
-
-st.caption("مولد QR المستخدم: " + ("segno (محلي)" if segno is not None else "API خارجي (بدون تثبيت مكتبات)"))
 
 # ===== إضافة الأصناف =====
 st.header("🧪 الأصناف")
@@ -212,10 +178,6 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_x(125)
     pdf.cell(40, 8, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
-
-    # توليد وإدراج QR Code في المكان المحدد
-    qr_path = generate_qrcode(invoice_number or "00000", filename="qrcode.png", size=200)
-    pdf.image(qr_path, x=qr_x, y=qr_y, w=30)  # تحكم في الموقع عبر X و Y
 
     # حفظ وتنزيل الفاتورة
     invoice_safe = re.sub(r'\W+', '_', invoice_number or "no_number")
