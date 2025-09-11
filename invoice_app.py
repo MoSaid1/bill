@@ -105,20 +105,14 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     # --------- جدول الأصناف ----------
     table_y = 80
-    headers = ["إجمالي القيمة", "الخصم", "سعر الجمهور", "تاريخ الصلاحية", "التشغيلة", "الكمية", "اسم الصنف"]
-    col_w =     [28,             18,      24,          24,             22,        16,         48]
-    table_width = sum(col_w)
-    x_center = (210 - table_width) / 2
+headers = ["إجمالي القيمة", "الخصم", "سعر الجمهور", "تاريخ الصلاحية", "التشغيلة", "الكمية", "اسم الصنف"]
+col_w =   [28,             18,       24,           24,               22,        16,         48]
 
-    total = 0.0
-    total_qty = 0
-
-    pdf.set_xy(x_center, table_y)
-    pdf.set_font("Cairo", "", 10)
-
-    for h, w in zip(headers, col_w):
-        pdf.cell(w, 8, ar(h), 1, 0, 'C')
-    pdf.ln()
+pdf.set_font("Cairo", "", 10)
+pdf.set_x(x_center)
+for h, w in zip(headers, col_w):
+    pdf.cell(w, 8, ar(h), 1, 0, 'C')
+pdf.ln()
 
     def has_ar(text):
         for ch in str(text):
