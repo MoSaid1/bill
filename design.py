@@ -3,55 +3,47 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 from datetime import datetime
 
-# دالة تجهيز النص العربي
+# دالة لمعالجة النصوص العربية
 def ar_text(txt):
-    if not txt:
+    if not txt:  # لو النص فاضي
         return ""
-    return get_display(arabic_reshaper.reshape(txt))
+    return get_display(arabic_reshaper.reshape(str(txt)))
 
-class PDF(FPDF):
-    def __init__(self):
-        super().__init__()
-        # لو عندك ملف خط عربي (مثلاً GraphikArabic.ttf)
-        try:
-            self.add_font("Graphik", "", "GraphikArabic.ttf", uni=True)
-            self.add_font("Graphik", "B", "GraphikArabic-Bold.ttf", uni=True)
-            self.set_font("Graphik", "", 12)
-        except:
-            # fallback للخط الافتراضي
-            self.set_font("Helvetica", "", 12)
-
+# كلاس تصميم الفاتورة
+class InvoicePDF(FPDF):
     def header(self):
-        self.set_font("Graphik", "B", 18)
-        self.cell(0, 10, ar_text("فاتورة مبيعات"), ln=True, align="C")
-        self.ln(5)
+        self.set_font("Helvetica", "B", 18)  # استخدم خط أساسي متاح
+        self.cell(0, 10, ar_text("فاتورة"), border=False, ln=True, align="C")
+        self.ln(10)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font("Graphik", "I", 8)
-        self.cell(0, 10, f"{ar_text('صفحة')} {self.page_no()}", align="C")
+        self.set_font("Helvetica", "I", 8)
+        self.cell(0, 10, ar_text("صفحة ") + str(self.page_no()), align="C")
 
-    def customer_info(self, name, code, address):
-        self.set_font("Graphik", "", 12)
+    def customer_info(self, name, code, address, date=None):
+        self.set_font("Helvetica", "", 12)
         self.cell(0, 10, ar_text("اسم الحساب: ") + ar_text(name), ln=True)
         self.cell(0, 10, ar_text("كود الحساب: ") + ar_text(code), ln=True)
         self.cell(0, 10, ar_text("العنوان: ") + ar_text(address), ln=True)
-        self.cell(0, 10, ar_text("التاريخ: ") + ar_text(datetime.now().strftime("%Y-%m-%d")), ln=True)
+        if not date:
+            date = datetime.now().strftime("%d-%m-%Y")
+        self.cell(0, 10, ar_text("التاريخ: ") + ar_text(date), ln=True)
         self.ln(5)
 
-    def invoice_table(self, items):
-        self.set_font("Graphik", "B", 12)
-        # عناوين الجدول
-        self.cell(40, 10, ar_text("الكمية"), 1, 0, "C")
-        self.cell(40, 10, ar_text("السعر"), 1, 0, "C")
-        self.cell(80, 10, ar_text("الوصف"), 1, 1, "C")
+    def invoice_table(self, data):
+        # العناوين
+        self.set_font("Helvetica", "B", 12)
+        col_widths = [40, 25, 25, 35, 25, 30]
+        headers = ["اسم صنف", "كمية", "تاريخ صلاحية", "سعر اجمالي", "الخصم", "إجمالي القيمة"]
 
-        self.set_font("Graphik", "", 12)
-        for item in items:
-            self.cell(40, 10, ar_text(str(item['quantity'])), 1, 0, "C")
-            self.cell(40, 10, ar_text(str(item['price'])), 1, 0, "C")
-            self.cell(80, 10, ar_text(item['description']), 1, 1, "C")
+        for i, header in enumerate(headers):
+            self.cell(col_widths[i], 10, ar_text(header), border=1, align="C")
+        self.ln()
 
-    def total_amount(self, total):
-        self.set_font("Graphik", "B", 12)
-        self.cell(0, 10, ar_text("الإجمالي: ") + ar_text(str(total)), ln=True, align="R")
+        # الصفوف
+        self.set_font("Helvetica", "", 12)
+        for row in data:
+            for i, item in enumerate(row):
+                self.cell(col_widths[i], 10, ar_text(str(item)), border=1, align="C")
+            self.ln()
