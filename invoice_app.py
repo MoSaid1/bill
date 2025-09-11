@@ -1,97 +1,68 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime
-from design import InvoicePDF, ar_text  # استيراد الكلاس والدالة
-import os
+from design import InvoicePDF, ar_text   # نستورد الكلاس و دالة النص العربي
 
-# إعداد الصفحة
-st.set_page_config(page_title="مولد الفواتير - Begonia Pharma", page_icon="📄")
+# واجهة المستخدم
+st.title("🧾 إنشاء فاتورة")
 
-st.title("📄 مولد الفواتير - Begonia Pharma")
+customer_name = st.text_input("اسم العميل")
+items = []
 
-# تهيئة session_state للأصناف
-if "items" not in st.session_state:
-    st.session_state["items"] = []
+st.subheader("إضافة الأصناف")
+num_items = st.number_input("عدد الأصناف", min_value=1, max_value=20, value=1)
 
-# بيانات العميل
-st.header("بيانات العميل")
-customer_name = st.text_input("اسم الحساب")
-customer_code = st.text_input("كود الحساب")
-customer_address = st.text_area("العنوان")
+for i in range(num_items):
+    st.markdown(f"### الصنف {i+1}")
+    name = st.text_input(f"اسم الصنف {i+1}", key=f"name_{i}")
+    qty = st.number_input(f"الكمية {i+1}", min_value=1, value=1, key=f"qty_{i}")
+    expiry = st.text_input(f"تاريخ الصلاحية {i+1}", key=f"expiry_{i}")
+    price = st.number_input(f"سعر الجمهور {i+1}", min_value=0.0, key=f"price_{i}")
+    discount = st.number_input(f"الخصم {i+1}", min_value=0.0, key=f"discount_{i}")
+    
+    items.append({
+        "name": name,
+        "qty": qty,
+        "expiry": expiry,
+        "price": price,
+        "discount": discount,
+        "total": (price - discount) * qty,
+    })
 
-# إضافة الأصناف
-st.header("إضافة الأصناف")
-with st.form("add_item"):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        name = st.text_input("اسم الصنف")
-    with col2:
-        qty = st.number_input("الكمية", min_value=1, step=1)
-    with col3:
-        price = st.number_input("سعر الجمهور", min_value=0.0, step=0.5)
-
-    col4, col5 = st.columns(2)
-    with col4:
-        expiry = st.text_input("تاريخ الصلاحية (مثال: 12/2025)")
-    with col5:
-        discount = st.number_input("الخصم (%)", min_value=0, max_value=100)
-
-    submitted = st.form_submit_button("➕ إضافة صنف")
-    if submitted and name:
-        st.session_state["items"].append(
-            {"name": name, "qty": qty, "price": price, "expiry": expiry, "discount": discount}
-        )
-
-# عرض الأصناف
-st.subheader("الأصناف المضافة")
-if st.session_state["items"]:
-    df = pd.DataFrame(st.session_state["items"])
-    st.table(df)
-else:
-    st.info("لم يتم إضافة أي أصناف بعد.")
-
-# توليد الفاتورة
-if st.button("📥 توليد الفاتورة PDF"):
+if st.button("إنشاء فاتورة PDF"):
     pdf = InvoicePDF()
     pdf.add_page()
+    pdf.set_font("GraphikArabic", "", 12)
 
     # بيانات العميل
-    pdf.set_font("GraphikArabic", "", 12)
-    pdf.cell(0, 10, ar_text(f"اسم الحساب: {customer_name}"), ln=True)
-    pdf.cell(0, 10, ar_text(f"كود الحساب: {customer_code}"), ln=True)
-    pdf.cell(0, 10, ar_text(f"العنوان: {customer_address}"), ln=True)
-    pdf.cell(0, 10, ar_text(f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"), ln=True)
-    pdf.ln(5)
+    pdf.cell(0, 10, ar_text(f"اسم العميل: {customer_name}"), ln=True, align="R")
 
-    # جدول الفاتورة
-    col_widths = [40, 25, 30, 30, 25, 40]
+    # جدول الأصناف
+    pdf.ln(5)
+    col_widths = [40, 20, 40, 30, 20, 30]
     headers = ["اسم الصنف", "الكمية", "تاريخ الصلاحية", "سعر الجمهور", "الخصم", "اجمالي القيمة"]
 
-    pdf.set_font("GraphikArabic", "", 12)
+    pdf.set_font("GraphikArabic", "B", 12)
     for i, header in enumerate(headers):
         pdf.cell(col_widths[i], 10, ar_text(header), 1, 0, "C")
     pdf.ln()
 
-    total = 0
-    pdf.set_font("GraphikArabic", "", 11)
-    for item in st.session_state["items"]:
+    pdf.set_font("GraphikArabic", "", 12)
+    for item in items:
         pdf.cell(col_widths[0], 10, ar_text(item["name"]), 1)
-        pdf.cell(col_widths[1], 10, str(item["qty"]), 1)
-        pdf.cell(col_widths[2], 10, ar_text(item["expiry"]), 1)
-        pdf.cell(col_widths[3], 10, str(item["price"]), 1)
-        pdf.cell(col_widths[4], 10, str(item["discount"])+"%", 1)
-        value = item["qty"] * item["price"] * (1 - item["discount"]/100)
-        pdf.cell(col_widths[5], 10, str(round(value, 2)), 1, ln=True)
-        total += value
+        pdf.cell(col_widths[1], 10, str(item["qty"]), 1, 0, "C")
+        pdf.cell(col_widths[2], 10, ar_text(item["expiry"]), 1, 0, "C")
+        pdf.cell(col_widths[3], 10, str(item["price"]), 1, 0, "C")
+        pdf.cell(col_widths[4], 10, str(item["discount"]), 1, 0, "C")
+        pdf.cell(col_widths[5], 10, str(item["total"]), 1, 0, "C")
+        pdf.ln()
 
+    # المجموع الكلي
+    total_amount = sum(item["total"] for item in items)
     pdf.ln(5)
-    pdf.set_font("GraphikArabic", "", 14)
-    pdf.cell(0, 10, ar_text(f"إجمالي القيمة: {round(total, 2)}"), ln=True, align="R")
+    pdf.set_font("GraphikArabic", "B", 12)
+    pdf.cell(0, 10, ar_text(f"المجموع الكلي: {total_amount}"), ln=True, align="R")
 
-    # حفظ الملف
-    filename = "invoice.pdf"
-    pdf.output(filename)
-
-    # تحميل الملف
-    with open(filename, "rb") as f:
-        st.download_button("⬇️ تحميل الفاتورة", f, file_name=filename)
+    # حفظ وعرض
+    file_path = "invoice.pdf"
+    pdf.output(file_path)
+    with open(file_path, "rb") as f:
+        st.download_button("📥 تحميل الفاتورة", f, file_name="invoice.pdf")
