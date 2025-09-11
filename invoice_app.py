@@ -83,7 +83,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_text_color(0, 0, 0)
 
     # ------- إدخال البيانات في أماكنها -------
-    pdf.set_xy(200, 27)
+    pdf.set_xy(140, 27)
     pdf.cell(60, 8, ar(customer_name), 0, 0, "R")
     pdf.set_xy(133, 35)
     pdf.cell(60, 8, ar(customer_code), 0, 0, "R")
