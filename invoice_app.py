@@ -85,13 +85,13 @@ if st.button("📥 توليد الفاتورة PDF"):
     # ------- إدخال البيانات في أماكنها -------
     pdf.set_xy(105, 25)
     pdf.cell(60, 8, ar(customer_name), 0, 0, "R")
-    pdf.set_xy(105, 35)
+    pdf.set_xy(105, 32)
     pdf.cell(60, 8, ar(customer_code), 0, 0, "R")
-    pdf.set_xy(105, 43)
+    pdf.set_xy(105, 41)
     pdf.cell(60, 8, ar(invoice_number), 0, 0, "R")
-    pdf.set_xy(20, 51)
+    pdf.set_xy(20, 49)
     pdf.multi_cell(160, 6, ar(customer_address), 0, "R")
-    pdf.set_xy(165, 18)
+    pdf.set_xy(165, 16)
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
     # ---------- جدول الأصناف ----------
