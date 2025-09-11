@@ -18,7 +18,7 @@ def fix_arabic(txt: str) -> str:
         print(f"Error in Arabic reshaping: {e}")
         return str(txt)
 
-# إعداد Streamlit
+# إعداد صفحة Streamlit
 st.set_page_config("مولد فواتير | Begonia Pharma", ":page_facing_up:")
 st.title("📄 مولد الفاتورة - Begonia Pharma")
 
@@ -35,18 +35,19 @@ with col2:
 with col3:
     invoice_number = st.text_input("رقم الفاتورة")
 customer_address = st.text_area("العنوان")
-paid_amount = st.number_input("تحصيل الدفع", min_value=0.0, step=10.0)
 
-# ===== خيارات إضافية =====
-st.header("خصومات إضافية")
-col_disc1, col_disc2 = st.columns(2)
-with col_disc1:
-    early_payment = st.checkbox("📉 تعجيل الدفع (خصم 3%)")
-with col_disc2:
-    extra_discount = st.number_input("📦 خصم إضافي (%)", min_value=0, max_value=100, value=0)
+# ===== المدفوعات والخصومات =====
+st.header("💲 المدفوعات والخصومات")
+colp1, colp2, colp3 = st.columns(3)
+with colp1:
+    paid_amount = st.number_input("تحصيل الدفع", min_value=0.0, step=10.0)
+with colp2:
+    early_discount = st.number_input("📉 خصم تعجيل الدفع (%)", min_value=0.0, max_value=100.0, step=0.5, value=0.0)
+with colp3:
+    extra_discount = st.number_input("📦 خصم إضافي عام (%)", min_value=0.0, max_value=100.0, step=0.5, value=0.0)
 
 # ===== إدخال الأصناف =====
-st.header("إضافة الأصناف")
+st.header("🧪 إضافة الأصناف")
 with st.form("add-item"):
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -62,7 +63,7 @@ with st.form("add-item"):
     with c5:
         expiry = st.text_input("تاريخ الصلاحية")
     with c6:
-        discount = st.number_input("الخصم (%)", min_value=0, max_value=100)
+        discount = st.number_input("الخصم (%)", min_value=0.0, max_value=100.0, step=0.5)
 
     if st.form_submit_button("➕ إضافة"):
         st.session_state["items"].append({
@@ -87,7 +88,6 @@ else:
 # ===== توليد الفاتورة PDF =====
 if st.button("📥 توليد الفاتورة PDF"):
 
-    # تحقق من الملفات
     if not os.path.exists("bill.jpg"):
         st.error("❗ يجب وجود ملف الخلفية bill.jpg")
         st.stop()
@@ -98,11 +98,8 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     pdf = FPDF()
     pdf.add_page()
-
-    # خلفية
     pdf.image("bill.jpg", x=0, y=0, w=210, h=297)
 
-    # الخط العربي
     try:
         pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
         pdf.set_font("Amiri", "", 12)
@@ -123,18 +120,9 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
     # جدول الأصناف
-    headers = [
-        "إجمالي القيمة",
-        "الخصم",
-        "سعر الجمهور",
-        "تاريخ الصلاحية",
-        "التشغيلة",
-        "الكمية",
-        "اسم الصنف"
-    ]
+    headers = ["إجمالي القيمة", "الخصم", "سعر الجمهور", "تاريخ الصلاحية", "التشغيلة", "الكمية", "اسم الصنف"]
     col_w = [28, 18, 24, 24, 22, 16, 48]
-    table_width = sum(col_w)
-    x_center = (210 - table_width) / 2
+    x_center = (210 - sum(col_w)) / 2
     table_y = 80
 
     total = 0.0
@@ -142,20 +130,16 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     pdf.set_xy(x_center, table_y)
     pdf.set_font("Amiri", "", 10)
-    pdf.set_x(x_center)
     pdf.set_fill_color(230, 230, 230)
-
     for h, w in zip(headers, col_w):
         pdf.cell(w, 8, fix_arabic(h), 1, 0, 'C', fill=True)
     pdf.ln()
 
     pdf.set_fill_color(255, 255, 255)
-
     for item in st.session_state["items"]:
         val = item["qty"] * item["price"] * (1 - item["discount"] / 100)
         total += val
         total_qty += item["qty"]
-
         row = [
             fix_arabic(f"{val:.2f}"),
             fix_arabic(f"{item['discount']}%"),
@@ -165,7 +149,6 @@ if st.button("📥 توليد الفاتورة PDF"):
             fix_arabic(str(item["qty"])),
             fix_arabic(item["name"])
         ]
-
         pdf.set_x(x_center)
         for text, w in zip(row, col_w):
             pdf.cell(w, 9, text, 1, 0, 'C')
@@ -173,16 +156,12 @@ if st.button("📥 توليد الفاتورة PDF"):
 
     original_total = total
 
-    # ===== الخصومات
-    applied_discounts = []
-
-    if early_payment:
-        total *= 0.97
-        applied_discounts.append(("خصم تعجيل الدفع", "3%"))
+    # ===== تطبيق الخصومات
+    if early_discount > 0:
+        total *= (1 - early_discount / 100)
 
     if extra_discount > 0:
         total *= (1 - extra_discount / 100)
-        applied_discounts.append(("خصم إضافي", f"{extra_discount}%"))
 
     # ===== ملخص الفاتورة
     pdf.set_font("Amiri", "", 11)
@@ -201,16 +180,21 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(40, line_height, fix_arabic(f"{paid_amount:.2f}"), 1, 0, 'C')
     pdf.cell(40, line_height, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
 
-    for label, val in applied_discounts:
+    if early_discount > 0:
         pdf.set_x(125)
-        pdf.cell(40, line_height, fix_arabic(val), 1, 0, 'C')
-        pdf.cell(40, line_height, fix_arabic(label), 1, 1, 'C')
+        pdf.cell(40, line_height, fix_arabic(f"{early_discount}%"), 1, 0, 'C')
+        pdf.cell(40, line_height, fix_arabic("خصم تعجيل الدفع"), 1, 1, 'C')
+
+    if extra_discount > 0:
+        pdf.set_x(125)
+        pdf.cell(40, line_height, fix_arabic(f"{extra_discount}%"), 1, 0, 'C')
+        pdf.cell(40, line_height, fix_arabic("خصم إضافي عام"), 1, 1, 'C')
 
     pdf.set_x(125)
     pdf.cell(40, line_height, fix_arabic(f"{total:.2f}"), 1, 0, 'C')
     pdf.cell(40, line_height, fix_arabic("إجمالي القيمة"), 1, 1, 'C')
 
-    # الاسم الآمن للملف
+    # اسم الملف
     today_str = datetime.now().strftime("%Y-%m-%d")
     safe_invoice = re.sub(r'\W+', '_', invoice_number or "بدون_رقم")
     filename = f"فاتورة_{safe_invoice}_{today_str}.pdf"
