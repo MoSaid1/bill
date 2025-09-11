@@ -7,20 +7,19 @@ from bidi.algorithm import get_display
 import os
 import re
 
-# ---------- دالة تشكيل النص العربي ----------
+# ----- إعداد اللغة العربية -----
 def ar(txt):
     if not txt:
         return ""
     return get_display(arabic_reshaper.reshape(str(txt)))
 
-# ---------- تهيئة صفحة Streamlit ----------
 st.set_page_config("مولد فواتير | Begonia Pharma", ":page_facing_up:")
 st.title("📄 مولد الفاتورة - Begonia Pharma")
 
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-# ---------- بيانات العميل ----------
+# ----- إدخال بيانات العميل -----
 st.header("بيانات العميل")
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -32,7 +31,7 @@ with col3:
 customer_address = st.text_area("العنوان")
 paid_amount = st.number_input("تحصيل الدفع", min_value=0.0, step=10.0)
 
-# ---------- إضافة الأصناف ----------
+# ----- إدخال الأصناف -----
 st.header("إضافة الأصناف")
 with st.form("add-item"):
     c1, c2, c3 = st.columns(3)
@@ -61,7 +60,7 @@ with st.form("add-item"):
             "discount": discount
         })
 
-# ---------- عرض الأصناف الحالية ----------
+# ----- عرض الأصناف -----
 if st.session_state["items"]:
     df = pd.DataFrame(st.session_state["items"])
     df["إجمالي القيمة"] = (
@@ -71,15 +70,15 @@ if st.session_state["items"]:
 else:
     st.info("لم يتم إدخال أي أصناف حتى الآن.")
 
-# ---------- توليد ملف PDF للفاتورة ----------
+# ----- توليد الفاتورة PDF -----
 if st.button("📥 توليد الفاتورة PDF"):
 
     if not os.path.exists("bill.jpg"):
-        st.error("❗ ملف الخلفية 'bill.jpg' غير موجود.")
+        st.error("❗ ملف الخلفية bill.jpg غير موجود.")
         st.stop()
 
     if not os.path.exists("Tajawal-Regular.ttf"):
-        st.error("❗ ملف الخط 'Tajawal-Regular.ttf' غير موجود.")
+        st.error("❗ ملف الخط Tajawal-Regular.ttf غير موجود.")
         st.stop()
 
     pdf = FPDF("P", "mm", "A4")
@@ -90,7 +89,7 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_font("Tajawal", "", 12)
     pdf.set_text_color(0, 0, 0)
 
-    # ---------- بيانات العميل في الفاتورة ----------
+    # --- بيانات العميل ---
     pdf.set_xy(105, 25)
     pdf.cell(60, 8, ar(customer_name), 0, 0, "R")
     pdf.set_xy(105, 35)
@@ -102,17 +101,17 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.set_xy(120, 14)
     pdf.cell(30, 8, datetime.now().strftime("%Y/%m/%d"), 0, 0, "C")
 
-    # ---------- جدول الأصناف ----------
-headers = [
-    ar("إجمالي القيمة"),
-    ar("الخصم"),
-    ar("سعر الجمهور"),
-    ar("تاريخ الصلاحية"),
-    ar("التشغيلة"),
-    ar("الكمية"),
-    ar("اسم الصنف")
-]
-col_w    = [28,             18,       24,           24,               22,        16,         48]
+    # --- جدول الأصناف ---
+    headers = [
+        ar("إجمالي القيمة"),
+        ar("الخصم"),
+        ar("سعر الجمهور"),
+        ar("تاريخ الصلاحية"),
+        ar("التشغيلة"),
+        ar("الكمية"),
+        ar("اسم الصنف")
+    ]
+    col_w = [28, 18, 24, 24, 22, 16, 48]
     table_width = sum(col_w)
     x_center = (210 - table_width) / 2
     table_y = 80
@@ -123,10 +122,9 @@ col_w    = [28,             18,       24,           24,               22,       
     pdf.set_xy(x_center, table_y)
     pdf.set_font("Tajawal", "", 10)
 
-    # ---------- رؤوس الأعمدة ----------
     pdf.set_x(x_center)
     for h, w in zip(headers, col_w):
-        pdf.cell(w, 8, ar(h), 1, 0, 'C')
+        pdf.cell(w, 8, h, 1, 0, 'C')
     pdf.ln()
 
     def has_ar(text):
@@ -148,12 +146,12 @@ col_w    = [28,             18,       24,           24,               22,       
         ]
 
         pdf.set_x(x_center)
-        for val_txt, w in zip(row, col_w):
-            txt = ar(val_txt) if has_ar(val_txt) else str(val_txt)
-            pdf.cell(w, 9, txt, 1, 0, 'C')
+        for txt, w in zip(row, col_w):
+            content = ar(txt) if has_ar(txt) else str(txt)
+            pdf.cell(w, 9, content, 1, 0, 'C')
         pdf.ln()
 
-    # ---------- ملخص الفاتورة ----------
+    # --- ملخص الفاتورة ---
     pdf.set_font("Tajawal", "", 11)
     pdf.set_xy(125, 220)
     pdf.cell(40, 8, str(len(st.session_state["items"])), 1, 0, 'C')
@@ -168,13 +166,12 @@ col_w    = [28,             18,       24,           24,               22,       
     pdf.cell(40, 8, f"{total:.2f}", 1, 0, 'C')
     pdf.cell(40, 8, ar("إجمالي القيمة"), 1, 1, 'C')
 
-    # ---------- اسم الملف: رقم الفاتورة + التاريخ ----------
+    # --- اسم الملف يشمل رقم الفاتورة والتاريخ ---
     today_str = datetime.now().strftime("%Y-%m-%d")
     safe_invoice = re.sub(r'\W+', '_', invoice_number or "بدون_رقم")
     filename = f"فاتورة_{safe_invoice}_{today_str}.pdf"
     pdf.output(filename)
 
-    # ---------- زر التنزيل ----------
     with open(filename, "rb") as f:
-        st.success("✅ تم توليد الفاتورة بنجاح!")
+        st.success("✅ تم توليد الفاتورة!")
         st.download_button("⬇️ تحميل الفاتورة", f, file_name=filename, mime="application/pdf")
