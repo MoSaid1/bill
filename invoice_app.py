@@ -36,7 +36,10 @@ st.header("💲 المدفوعات والخصومات")
 col_a, col_b = st.columns(2)
 
 with col_a:
-    paid_amount = st.number_input("💵 تحصيل الدفع", min_value=0.0, step=10.0)
+    apply_paid = st.checkbox("🪙 تفعيل تحصيل الدفع؟")
+    paid_amount = 0.0
+    if apply_paid:
+        paid_amount = st.number_input("💵 تحصيل الدفع", min_value=0.0, step=10.0)
 
 with col_b:
     apply_early = st.checkbox("📉 تفعيل خصم تعجيل الدفع؟")
@@ -161,9 +164,11 @@ if st.button("📥 توليد الفاتورة PDF"):
     pdf.cell(40, 8, fix_arabic(str(total_qty)), 1, 0, 'C')
     pdf.cell(40, 8, fix_arabic("عدد العلب"), 1, 1, 'C')
 
-    pdf.set_x(125)
-    pdf.cell(40, 8, fix_arabic(f"{paid_amount:.2f}"), 1, 0, 'C')
-    pdf.cell(40, 8, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
+    # تحصيل الدفع يظهر فقط لو الأوبشن مفعّل
+    if apply_paid:
+        pdf.set_x(125)
+        pdf.cell(40, 8, fix_arabic(f"{paid_amount:.2f}"), 1, 0, 'C')
+        pdf.cell(40, 8, fix_arabic("تحصيل الدفع"), 1, 1, 'C')
 
     if apply_early and early_discount > 0:
         pdf.set_x(125)
