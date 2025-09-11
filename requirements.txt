@@ -3,4 +3,3 @@ fpdf>=2.7.6
 arabic-reshaper
 python-bidi
 pandas
-segno
